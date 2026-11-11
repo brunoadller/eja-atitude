@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg font-medium text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply btn bg-slate-900 text-white hover:bg-slate-800 px-4 py-2.5;
+  }
+  .btn-secondary {
+    @apply btn bg-white text-slate-900 border border-slate-200 hover:bg-neutral-50 hover:border-slate-300 px-4 py-2.5;
+  }
+  .btn-danger {
+    @apply btn bg-red-50 text-red-600 hover:bg-red-100 px-4 py-2.5;
+  }
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs;
+  }
+  .btn-ghost {
+    @apply btn text-slate-500 hover:text-slate-900 hover:bg-neutral-100 px-3 py-1.5;
+  }
+  .input {
+    @apply w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 placeholder:text-slate-400;
+  }
+  .label {
+    @apply block mb-1.5 text-xs font-medium uppercase tracking-wider text-slate-500;
+  }
+  .card {
+    @apply bg-white border border-slate-200 rounded-xl overflow-hidden;
+  }
+  .card-header {
+    @apply px-6 py-4 border-b border-slate-200 flex items-center justify-between gap-3;
+  }
+  .pill {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  .pill-success { @apply pill bg-emerald-50 text-emerald-700; }
+  .pill-warning { @apply pill bg-amber-50 text-amber-700; }
+  .pill-danger { @apply pill bg-red-50 text-red-700; }
+  .pill-accent { @apply pill bg-indigo-50 text-indigo-700; }
+  .pill-muted { @apply pill bg-neutral-100 text-slate-500 border border-slate-200; }
+}

@@ -1,0 +1,215 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Student {
+  id                  String    @id @default(cuid())
+  enrollment          String    @unique @map("matricula")
+  name                String    @map("nome")
+  cpf                 String?   @unique
+  rg                  String?
+  birthDate           DateTime? @map("data_nascimento") @db.Date
+  birthplace          String?   @map("naturalidade")
+  nationality         String    @default("Brasileiro") @map("nacionalidade")
+  gender              String?   @map("sexo")
+  email               String?
+  phone               String?   @map("telefone")
+  address             String?   @map("endereco")
+  city                String?   @map("cidade")
+  state               String?   @map("estado")
+  zipCode             String?   @map("cep")
+  motherName          String?   @map("nome_mae")
+  fatherName          String?   @map("nome_pai")
+  educationLevel      String?   @map("escolaridade")
+  priorStudies        String?   @map("aproveitamento_estudos") @db.Text
+  modality            String?   @map("modalidade")
+  moduleNumber        Int       @default(2) @map("numero_modulo")
+  startModuleNumber   Int       @default(2) @map("modulo_inicial")
+  classGroup          String?   @map("turma")
+  enrollmentDate      DateTime? @map("data_matricula") @db.Date
+  monthlyFee          Decimal   @default(199.00) @map("valor_mensalidade") @db.Decimal(10, 2)
+  // pending = matriculado, aguardando aceite do contrato | active | completed | locked
+  status              String    @default("pending")
+  passwordHash        String?   @map("senha_hash")
+  tokenVersion        Int       @default(0) @map("token_version")
+  contractAccepted    Boolean   @default(false) @map("contrato_aceito")
+  contractAcceptedAt  DateTime? @map("contrato_aceito_em")
+  contractVersion     String?   @map("contrato_versao")
+  contractIp          String?   @map("contrato_ip")
+  createdAt           DateTime  @default(now()) @map("created_at")
+
+  grades              Grade[]
+  invoices            Invoice[]
+  documents           StudentDocument[]
+  passwordResets      PasswordReset[]
+  documentRequests    DocumentRequest[]
+
+  @@map("alunos")
+}
+
+model Grade {
+  id               String    @id @default(cuid())
+  studentId        String    @map("aluno_id")
+  subject          String    @map("disciplina")
+  componentModule  Int?      @map("modulo_componente")
+  examNumber       Int       @map("numero_prova")
+  attempt          Int       @default(1) @map("tentativa")
+  score            Decimal?  @map("nota") @db.Decimal(4, 2)
+  scheduledDate    DateTime? @map("data_agendada")
+  feeCharged       Boolean   @default(false) @map("taxa_cobrada")
+  feeInvoiceId     String?   @map("boleto_taxa_id")
+  year             Int       @default(2026) @map("ano")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  student          Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([studentId, subject, componentModule])
+  @@map("notas")
+}
+
+model Invoice {
+  id                String    @id @default(cuid())
+  studentId         String    @map("aluno_id")
+  // installment = parcela da matrícula | fee = taxa (2ª via, recuperação...)
+  kind              String    @default("installment") @map("tipo")
+  reference         String    @map("referencia")
+  installmentNumber Int?      @map("parcela")
+  installmentTotal  Int?      @map("total_parcelas")
+  amount            Decimal   @map("valor") @db.Decimal(10, 2)
+  dueDate           DateTime  @map("vencimento") @db.Date
+  barcodeLine       String?   @map("linha_digitavel")
+  // open | paid
+  status            String    @default("open")
+  paidAt            DateTime? @map("data_pagamento") @db.Date
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  student           Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  documentRequest   DocumentRequest?
+
+  @@index([studentId])
+  @@map("boletos")
+}
+
+model Book {
+  id           String   @id @default(cuid())
+  title        String   @map("titulo")
+  subject      String   @map("disciplina")
+  module       String?  @map("modulo")
+  moduleNumber Int?     @map("numero_modulo")
+  description  String?  @map("descricao") @db.Text
+  fileUrl      String?  @map("url_arquivo")
+  modality     String   @default("todos") @map("modalidade")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("apostilas")
+}
+
+model Admin {
+  id           String   @id @default(cuid())
+  username     String   @unique @map("usuario")
+  passwordHash String   @map("senha_hash")
+  name         String?  @map("nome")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("admins")
+}
+
+model StudentDocument {
+  id            String    @id @default(cuid())
+  studentId     String    @map("aluno_id")
+  type          String    @map("tipo")
+  originalName  String    @map("nome_original")
+  fileName      String    @map("nome_arquivo")
+  mimetype      String
+  size          Int       @map("tamanho")
+  status        String    @default("pendente")
+  note          String?   @map("observacao") @db.Text
+  uploadedAt    DateTime  @default(now()) @map("enviado_em")
+  reviewedAt    DateTime? @map("analisado_em")
+
+  student       Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([type])
+  @@map("documentos_aluno")
+}
+
+model ClassSession {
+  id              String   @id @default(cuid())
+  classGroup      String   @map("turma")
+  date            DateTime @map("data")
+  subject         String   @map("disciplina")
+  componentModule Int?     @map("modulo_componente")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([classGroup])
+  @@map("aulas_cronograma")
+}
+
+model ExamRound {
+  id          String   @id @default(cuid())
+  classGroup  String   @map("turma")
+  roundNumber Int      @map("numero_prova")
+  examDate    DateTime @map("data_prova")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  items       ExamRoundItem[]
+
+  @@unique([classGroup, roundNumber])
+  @@index([classGroup])
+  @@map("provas_cronograma")
+}
+
+model ExamRoundItem {
+  id              String    @id @default(cuid())
+  roundId         String    @map("prova_id")
+  subject         String    @map("disciplina")
+  componentModule Int?      @map("modulo_componente")
+
+  round           ExamRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  @@index([roundId])
+  @@map("provas_cronograma_itens")
+}
+
+model PasswordReset {
+  id         String    @id @default(cuid())
+  studentId  String    @map("aluno_id")
+  codeHash   String    @map("codigo_hash")
+  attempts   Int       @default(0) @map("tentativas")
+  expiresAt  DateTime  @map("expira_em")
+  verifiedAt DateTime? @map("verificado_em")
+  usedAt     DateTime? @map("usado_em")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  student    Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@map("redefinicoes_senha")
+}
+
+// Solicitação de via de atestado/certificado. Via 1 gratuita (configurável); 2ª em diante exige taxa paga.
+model DocumentRequest {
+  id          String    @id @default(cuid())
+  studentId   String    @map("aluno_id")
+  type        String    @map("tipo") // attestation | certificate
+  via         Int       @map("via")
+  feeAmount   Decimal   @default(0) @map("valor_taxa") @db.Decimal(10, 2)
+  invoiceId   String?   @unique @map("boleto_id")
+  // awaiting_payment | ready | issued
+  status      String    @default("ready")
+  requestedAt DateTime  @default(now()) @map("solicitado_em")
+  issuedAt    DateTime? @map("emitido_em")
+
+  student     Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  invoice     Invoice?  @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+
+  @@index([studentId, type])
+  @@map("solicitacoes_documentos")
+}
