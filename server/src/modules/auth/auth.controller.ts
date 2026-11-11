@@ -2,6 +2,7 @@ import { CookieOptions, NextFunction, Request, Response } from 'express';
 import { prisma } from '@/config/database';
 import { env } from '@/config/env';
 import { AUTH_COOKIE } from '@/shared/middlewares/auth.middleware';
+import { AdminPasswordResetService } from './admin-password-reset.service';
 import { AuthService } from './auth.service';
 import { PasswordResetService } from './password-reset.service';
 
@@ -56,6 +57,24 @@ export const AuthController = {
     try {
       const { email } = await AuthService.updateAdminEmail(req.session!.userId, req.body.email, req.body.currentPassword);
       res.json({ ok: true, email, message: 'E-mail de recuperação salvo.' });
+    } catch (err) { next(err); }
+  },
+
+  async adminForgotRequest(req: Request, res: Response, next: NextFunction) {
+    try {
+      await AdminPasswordResetService.request(req.body.username);
+      res.json({ ok: true, message: 'Se o usuário estiver cadastrado com e-mail, enviamos um código para ele.' });
+    } catch (err) { next(err); }
+  },
+
+  async adminForgotVerify(req: Request, res: Response, next: NextFunction) {
+    try { res.json(await AdminPasswordResetService.verify(req.body.username, req.body.code)); } catch (err) { next(err); }
+  },
+
+  async adminForgotReset(req: Request, res: Response, next: NextFunction) {
+    try {
+      await AdminPasswordResetService.reset(req.body.resetToken, req.body.password);
+      res.json({ ok: true });
     } catch (err) { next(err); }
   },
 

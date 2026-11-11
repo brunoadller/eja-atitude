@@ -97,13 +97,14 @@ export default function Login() {
           <button className="btn-primary w-full" type="submit" disabled={loading}>
             {loading ? 'Entrando…' : 'Entrar'}
           </button>
-          {tipo === 'student' && (
-            <div className="mt-4 text-center">
-              <Link to="/esqueci-senha" className="text-sm text-indigo-600 hover:underline">
-                Esqueci minha senha
-              </Link>
-            </div>
-          )}
+          <div className="mt-4 text-center">
+            <Link
+              to={tipo === 'admin' ? '/esqueci-senha?tipo=secretaria' : '/esqueci-senha'}
+              className="text-sm text-indigo-600 hover:underline"
+            >
+              Esqueci minha senha
+            </Link>
+          </div>
           {
            /**
             * <div className="mt-5 p-3 bg-indigo-50 text-indigo-900 text-xs rounded-lg leading-relaxed">

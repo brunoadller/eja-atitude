@@ -33,8 +33,9 @@ export const MailService = {
 
     const t = getTransporter();
     if (!t) {
-      // Só chega aqui em desenvolvimento (em produção o SMTP é obrigatório).
-      logger.warn(`[DEV] SMTP não configurado. Código de redefinição para ${to}: ${code}`);
+      // Em produção o código NUNCA vai para o terminal/log (o env.ts já exige SMTP lá; isto é uma segunda trava).
+      if (env.NODE_ENV === 'production') throw new Error('SMTP não configurado');
+      logger.warn(`[MAIL-DEV] SMTP não configurado. Código de redefinição para ${to}: ${code}`);
       return;
     }
     await t.sendMail({ from: env.MAIL_FROM, to, subject: `${code} é o seu código para redefinir a senha`, text, html });

@@ -10,10 +10,11 @@ import { signResetToken, verifyResetToken } from '@/shared/utils/jwt';
 import { passwordPolicyError } from '@/shared/utils/password';
 import { AuthRepository } from './auth.repository';
 
-const CODE_TTL_MS = 10 * 60 * 1000;
-const RESEND_COOLDOWN_MS = 60 * 1000;
-const MAX_ATTEMPTS = 5;
-const BAD_CODE = 'código inválido ou expirado';
+// Exportadas para o fluxo da secretaria (admin-password-reset.service.ts) usar as mesmas regras.
+export const CODE_TTL_MS = 10 * 60 * 1000;
+export const RESEND_COOLDOWN_MS = 60 * 1000;
+export const MAX_ATTEMPTS = 5;
+export const BAD_CODE = 'código inválido ou expirado';
 
 export const PasswordResetService = {
   /** Sempre responde igual (exista ou não o CPF) para não revelar quem é aluno. */

@@ -9,7 +9,7 @@ const FIELD_LABELS: Record<string, string> = {
   installments: 'Número de parcelas', firstDueDate: 'Primeiro vencimento', password: 'Senha',
   passwordConfirm: 'Confirmação da senha', code: 'Código', score: 'Nota', date: 'Data', items: 'Disciplinas',
   subject: 'Disciplina', componentModule: 'Módulo da disciplina', examNumber: 'Prova',
-  currentPassword: 'Senha atual', newPassword: 'Nova senha', newPasswordConfirm: 'Confirmação da nova senha',
+  username: 'Usuário', currentPassword: 'Senha atual', newPassword: 'Nova senha', newPasswordConfirm: 'Confirmação da nova senha',
 };
 
 function describe(err: ZodError): string {

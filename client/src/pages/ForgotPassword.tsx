@@ -1,5 +1,5 @@
 import { FormEvent, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import { maskCpf, onlyDigits } from '../helpers/validateStudent';
 
@@ -7,8 +7,14 @@ type Step = 'cpf' | 'code' | 'password' | 'done';
 
 export default function ForgotPassword() {
   const nav = useNavigate();
+  // ?tipo=secretaria → fluxo da secretaria (pede o usuário em vez do CPF)
+  const [params] = useSearchParams();
+  const isAdmin = params.get('tipo') === 'secretaria';
+  const base = isAdmin ? 'auth/admin/forgot-password' : 'auth/forgot-password';
+
   const [step, setStep] = useState<Step>('cpf');
   const [cpf, setCpf] = useState('');
+  const [username, setUsername] = useState('');
   const [code, setCode] = useState('');
   const [token, setToken] = useState('');
   const [pass, setPass] = useState('');
@@ -23,10 +29,13 @@ export default function ForgotPassword() {
     try { await fn(); } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
   }
 
+  // identificação enviada ao servidor: usuário (secretaria) ou CPF (aluno)
+  const who = () => (isAdmin ? { username: username.trim() } : { cpf: onlyDigits(cpf) });
+
   const sendCpf = (e: FormEvent) => {
     e.preventDefault();
     run(async () => {
-      const r = await api<{ message: string }>('auth/forgot-password/request', { method: 'POST', body: { cpf: onlyDigits(cpf) } });
+      const r = await api<{ message: string }>(`${base}/request`, { method: 'POST', body: who() });
       setMsg(r.message);
       setStep('code');
     });
@@ -35,7 +44,7 @@ export default function ForgotPassword() {
   const sendCode = (e: FormEvent) => {
     e.preventDefault();
     run(async () => {
-      const r = await api<{ resetToken: string }>('auth/forgot-password/verify', { method: 'POST', body: { cpf: onlyDigits(cpf), code } });
+      const r = await api<{ resetToken: string }>(`${base}/verify`, { method: 'POST', body: { ...who(), code } });
       setToken(r.resetToken);
       setStep('password');
     });
@@ -45,13 +54,13 @@ export default function ForgotPassword() {
     e.preventDefault();
     if (pass !== pass2) return setErr('As senhas não conferem. Digite a mesma senha nos dois campos.');
     run(async () => {
-      await api('auth/forgot-password/reset', { method: 'POST', body: { resetToken: token, password: pass, passwordConfirm: pass2 } });
+      await api(`${base}/reset`, { method: 'POST', body: { resetToken: token, password: pass, passwordConfirm: pass2 } });
       setStep('done');
     });
   };
 
   const titles: Record<Step, string> = {
-    cpf: 'Esqueci minha senha',
+    cpf: isAdmin ? 'Esqueci a senha da secretaria' : 'Esqueci minha senha',
     code: 'Confirme o código',
     password: 'Cadastre a nova senha',
     done: 'Senha alterada!',
@@ -61,18 +70,37 @@ export default function ForgotPassword() {
     <div className="min-h-screen grid place-items-center bg-neutral-50 p-6">
       <div className="w-full max-w-sm bg-white border border-slate-200 rounded-xl p-8 shadow-sm">
         <h2 className="text-2xl font-bold tracking-tight mb-1">{titles[step]}</h2>
-        {step === 'cpf' && <p className="text-sm text-slate-500 mb-6">Informe o CPF do aluno. Enviaremos um código para o e-mail cadastrado na matrícula.</p>}
+        {step === 'cpf' && (
+          <p className="text-sm text-slate-500 mb-6">
+            {isAdmin
+              ? 'Informe o usuário da secretaria. Enviaremos um código para o e-mail cadastrado em "Minha conta".'
+              : 'Informe o CPF do aluno. Enviaremos um código para o e-mail cadastrado na matrícula.'}
+          </p>
+        )}
         {step === 'code' && <p className="text-sm text-slate-500 mb-6">{msg} O código tem 6 dígitos e vale por 10 minutos.</p>}
         {step === 'password' && <p className="text-sm text-slate-500 mb-6">Mínimo de 8 caracteres, com letras e números. Digite a senha duas vezes.</p>}
-        {step === 'done' && <p className="text-sm text-slate-500 mb-6">Sua senha foi atualizada. Entre com a matrícula e a nova senha.</p>}
+        {step === 'done' && (
+          <p className="text-sm text-slate-500 mb-6">
+            Sua senha foi atualizada. Entre com {isAdmin ? 'o usuário' : 'a matrícula'} e a nova senha.
+          </p>
+        )}
 
         {err && <div className="mb-3 text-sm text-red-600">{err}</div>}
 
         {step === 'cpf' && (
           <form onSubmit={sendCpf}>
-            <label className="label">CPF</label>
-            <input className="input mb-5" inputMode="numeric" value={cpf} onChange={(e) => setCpf(maskCpf(e.target.value))} placeholder="000.000.000-00" required />
-            <button className="btn-primary w-full" disabled={busy || onlyDigits(cpf).length !== 11}>{busy ? 'Enviando…' : 'Enviar código'}</button>
+            {isAdmin ? (
+              <>
+                <label className="label">Usuário</label>
+                <input className="input mb-5" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="admin" autoComplete="username" required />
+              </>
+            ) : (
+              <>
+                <label className="label">CPF</label>
+                <input className="input mb-5" inputMode="numeric" value={cpf} onChange={(e) => setCpf(maskCpf(e.target.value))} placeholder="000.000.000-00" required />
+              </>
+            )}
+            <button className="btn-primary w-full" disabled={busy || (isAdmin ? !username.trim() : onlyDigits(cpf).length !== 11)}>{busy ? 'Enviando…' : 'Enviar código'}</button>
           </form>
         )}
 
