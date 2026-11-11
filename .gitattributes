@@ -1,0 +1,4 @@
+ # Migrations do Prisma: sempre LF. O banco guarda o checksum do arquivo;
+  # se o git trocar a quebra de linha, o Prisma acha que a migration foi modificada.
+server/prisma/migrations/**/*.sql text eol=lf
+server/prisma/migrations/migration_lock.toml text eol=lf
