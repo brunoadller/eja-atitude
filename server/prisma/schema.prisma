@@ -115,9 +115,32 @@ model Admin {
   username     String   @unique @map("usuario")
   passwordHash String   @map("senha_hash")
   name         String?  @map("nome")
+  // E-mail para onde vai o código de "esqueci a senha" da secretaria.
+  email        String?
+  // Trocar/redefinir a senha incrementa este número e invalida as sessões antigas.
+  tokenVersion Int      @default(0) @map("token_version")
   createdAt    DateTime @default(now()) @map("created_at")
 
+  passwordResets AdminPasswordReset[]
+
   @@map("admins")
+}
+
+// Código de "esqueci a senha" da secretaria (mesmo funcionamento de PasswordReset, do aluno).
+model AdminPasswordReset {
+  id         String    @id @default(cuid())
+  adminId    String    @map("admin_id")
+  codeHash   String    @map("codigo_hash")
+  attempts   Int       @default(0) @map("tentativas")
+  expiresAt  DateTime  @map("expira_em")
+  verifiedAt DateTime? @map("verificado_em")
+  usedAt     DateTime? @map("usado_em")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  admin      Admin     @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@map("redefinicoes_senha_admin")
 }
 
 model StudentDocument {
