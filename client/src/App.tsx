@@ -8,6 +8,7 @@ import AdminApostilas from './pages/admin/Apostilas';
 import AdminBoletos from './pages/admin/Boletos';
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminDocumentos from './pages/admin/Documentos';
+import AdminMinhaConta from './pages/admin/MinhaConta';
 import AdminNotas from './pages/admin/Notas';
 import AlunoLayout from './pages/aluno/AlunoLayout';
 import AlunoApostilas from './pages/aluno/Apostilas';
@@ -56,6 +57,7 @@ export default function App() {
           <Route path="apostilas" element={<AdminApostilas />} />
           <Route path="documentos" element={<AdminDocumentos />} />
           <Route path="cronograma" element={<AdminCronograma />} />
+          <Route path="minha-conta" element={<AdminMinhaConta />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

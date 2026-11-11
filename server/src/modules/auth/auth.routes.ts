@@ -6,6 +6,7 @@ import { validate } from '@/shared/middlewares/validate.middleware';
 import { AuthController } from './auth.controller';
 import {
   adminChangePasswordSchema,
+  adminUpdateEmailSchema,
   forgotRequestSchema,
   forgotResetSchema,
   forgotVerifySchema,
@@ -26,6 +27,7 @@ const limiter = (windowMin: number, max: number, message: string) =>
 const loginLimiter = limiter(15, 10, 'muitas tentativas de login, aguarde alguns minutos');
 const forgotLimiter = limiter(60, 8, 'muitas tentativas, tente novamente mais tarde');
 const changePasswordLimiter = limiter(15, 5, 'muitas tentativas de troca de senha, aguarde alguns minutos');
+const updateEmailLimiter = limiter(15, 5, 'muitas tentativas de alterar o e-mail, aguarde alguns minutos');
 
 router.post('/login', loginLimiter, validate(loginSchema), AuthController.login);
 router.post('/logout', AuthController.logout);
@@ -38,6 +40,15 @@ router.post(
   adminMiddleware,
   validate(adminChangePasswordSchema),
   AuthController.changeAdminPassword,
+);
+
+// Secretaria logada cadastra/troca o e-mail de recuperação de senha.
+router.put(
+  '/admin/email',
+  updateEmailLimiter,
+  adminMiddleware,
+  validate(adminUpdateEmailSchema),
+  AuthController.updateAdminEmail,
 );
 
 router.post('/forgot-password/request', forgotLimiter, validate(forgotRequestSchema), AuthController.forgotRequest);

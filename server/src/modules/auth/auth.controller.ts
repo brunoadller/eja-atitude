@@ -52,6 +52,13 @@ export const AuthController = {
     } catch (err) { next(err); }
   },
 
+  async updateAdminEmail(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { email } = await AuthService.updateAdminEmail(req.session!.userId, req.body.email, req.body.currentPassword);
+      res.json({ ok: true, email, message: 'E-mail de recuperação salvo.' });
+    } catch (err) { next(err); }
+  },
+
   async forgotRequest(req: Request, res: Response, next: NextFunction) {
     try {
       await PasswordResetService.request(req.body.cpf);

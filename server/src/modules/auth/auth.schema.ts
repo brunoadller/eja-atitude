@@ -25,6 +25,14 @@ export const forgotResetSchema = z.object({
   }),
 });
 
+// E-mail de recuperação da secretaria. Pede a senha atual para ninguém trocar o e-mail numa sessão esquecida aberta.
+export const adminUpdateEmailSchema = z.object({
+  body: z.strictObject({
+    email: z.string().trim().toLowerCase().pipe(z.email('e-mail inválido')),
+    currentPassword: z.string().min(1, 'informe a senha atual'),
+  }),
+});
+
 // Troca de senha da secretaria estando logada. A regra da senha é a mesma do aluno (passwordPolicyError).
 export const adminChangePasswordSchema = z.object({
   body: z

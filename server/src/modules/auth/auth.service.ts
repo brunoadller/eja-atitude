@@ -53,4 +53,14 @@ export const AuthService = {
     const updated = await AuthRepository.updateAdminPassword(admin.id, await hashPassword(newPassword));
     return signAuthToken({ userId: updated.id, role: 'admin', tokenVersion: updated.tokenVersion });
   },
+
+  /** Salva o e-mail para onde vai o código de "esqueci a senha" da secretaria. */
+  async updateAdminEmail(adminId: string, email: string, currentPassword: string) {
+    const admin = await AuthRepository.findAdminById(adminId);
+    if (!admin) throw new UnauthorizedError('sessão inválida ou expirada');
+    if (!(await verifyPassword(currentPassword, admin.passwordHash))) {
+      throw new ValidationError('a senha atual está incorreta');
+    }
+    return AuthRepository.updateAdminEmail(admin.id, email);
+  },
 };

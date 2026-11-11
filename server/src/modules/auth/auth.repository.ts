@@ -3,6 +3,8 @@ import { prisma } from '@/config/database';
 export const AuthRepository = {
   findAdminByUsername: (username: string) => prisma.admin.findUnique({ where: { username } }),
   findAdminById: (id: string) => prisma.admin.findUnique({ where: { id } }),
+  updateAdminEmail: (id: string, email: string) =>
+    prisma.admin.update({ where: { id }, data: { email }, select: { email: true } }),
   /** Grava a nova senha e incrementa tokenVersion (derruba as sessões antigas). */
   updateAdminPassword: (id: string, passwordHash: string) =>
     prisma.admin.update({

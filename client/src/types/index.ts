@@ -73,6 +73,8 @@ export interface AdminUser {
   id: string;
   username: string;
   name: string;
+  /** E-mail para recuperação de senha da secretaria. */
+  email?: string | null;
 }
 
 export type Me = { type: 'admin'; user: AdminUser } | { type: 'student'; user: Student };
