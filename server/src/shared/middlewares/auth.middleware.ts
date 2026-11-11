@@ -20,8 +20,12 @@ export async function authMiddleware(req: Request, _res: Response, next: NextFun
     const payload = verifyAuthToken(token);
 
     if (payload.role === 'admin') {
-      const admin = await prisma.admin.findUnique({ where: { id: payload.sub }, select: { id: true } });
-      if (!admin) throw new UnauthorizedError('sessão inválida ou expirada');
+      const admin = await prisma.admin.findUnique({
+        where: { id: payload.sub },
+        select: { id: true, tokenVersion: true },
+      });
+      // tokenVersion muda quando a senha é trocada: tokens antigos deixam de valer.
+      if (!admin || admin.tokenVersion !== payload.tv) throw new UnauthorizedError('sessão inválida ou expirada');
       req.session = { userId: admin.id, type: 'admin' };
       return next();
     }

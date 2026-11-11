@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { passwordPolicyError } from '@/shared/utils/password';
 
 export const loginSchema = z.object({
   body: z.strictObject({
@@ -22,4 +23,21 @@ export const forgotResetSchema = z.object({
     password: z.string().min(1, 'informe a nova senha'),
     passwordConfirm: z.string().min(1, 'repita a nova senha'),
   }),
+});
+
+// Troca de senha da secretaria estando logada. A regra da senha é a mesma do aluno (passwordPolicyError).
+export const adminChangePasswordSchema = z.object({
+  body: z
+    .strictObject({
+      currentPassword: z.string().min(1, 'informe a senha atual'),
+      newPassword: z.string().min(1, 'informe a nova senha'),
+      newPasswordConfirm: z.string().min(1, 'repita a nova senha'),
+    })
+    .superRefine((b, ctx) => {
+      const policy = passwordPolicyError(b.newPassword);
+      if (policy) ctx.addIssue({ code: 'custom', path: ['newPassword'], message: policy });
+      if (b.newPassword !== b.newPasswordConfirm) {
+        ctx.addIssue({ code: 'custom', path: ['newPasswordConfirm'], message: 'as senhas não conferem' });
+      }
+    }),
 });

@@ -33,13 +33,22 @@ export const AuthController = {
       if (s.type === 'admin') {
         const admin = await prisma.admin.findUnique({ where: { id: s.userId } });
         if (!admin) return res.status(401).json({ error: 'não autenticado' });
-        const { passwordHash, ...safeAdmin } = admin;
+        const { passwordHash, tokenVersion, ...safeAdmin } = admin;
         return res.json({ type: 'admin', user: safeAdmin });
       }
       const student = await prisma.student.findUnique({ where: { id: s.userId } });
       if (!student) return res.status(401).json({ error: 'não autenticado' });
       const { passwordHash, contractIp, tokenVersion, ...safe } = student;
       return res.json({ type: 'student', user: safe });
+    } catch (err) { next(err); }
+  },
+
+  async changeAdminPassword(req: Request, res: Response, next: NextFunction) {
+    try {
+      const token = await AuthService.changeAdminPassword(req.session!.userId, req.body);
+      // Cookie novo para a sessão atual continuar logada (o token antigo deixou de valer).
+      res.cookie(AUTH_COOKIE, token, cookieOptions);
+      res.json({ ok: true, message: 'Senha alterada com sucesso.' });
     } catch (err) { next(err); }
   },
 
