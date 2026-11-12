@@ -3,16 +3,23 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../lib/auth';
 import { api } from '../../lib/api';
 import type { Student, Invoice, Grade} from '../../types';
+import { STATUS_LABEL } from '../../types';
 import { StatCard } from '../../components/PageHeader';
 import {IoRibbonOutline, IoGridOutline, IoIdCardOutline, IoBookOutline, IoStatsChartOutline, IoWalletOutline, IoCreateOutline, IoDocumentTextOutline
  } from "react-icons/io5";
 
 export default function AlunoDashboard() {
-  const { me } = useAuth();
+  const { me, refresh } = useAuth();
   const a = me!.user as Student;
   const [notas, setNotas] = useState<Grade[]>([]);
   const [boletos, setBoletos] = useState<Invoice[]>([]);
   const nav = useNavigate();
+
+  // busca a situação atualizada (ex.: virou "Concluído" depois que a secretaria aprovou o último documento)
+  useEffect(() => {
+    refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     api<Grade[]>(`grades/${a.id}`).then(setNotas).catch(() => {});
@@ -47,7 +54,18 @@ export default function AlunoDashboard() {
         <QuickAction icon={<IoCreateOutline size={30}/>} title="Contrato" desc="Ver aceite" onClick={() => nav('/contrato')} />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          label="Situação"
+          value={STATUS_LABEL[a.status] || a.status}
+          hint={
+            a.status === 'completed'
+              ? 'Provas e documentação concluídas'
+              : a.status === 'active'
+                ? 'Curso em andamento'
+                : undefined
+          }
+        />
         <StatCard
           label="Disciplinas"
           value={new Set(notas.map((n) => n.subject)).size}

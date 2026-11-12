@@ -4,6 +4,7 @@ import { DOC_LABEL, FeeDocType, feeForVia } from '@/shared/constants/fees';
 import { ConflictError } from '@/shared/errors/ConflictError';
 import { ForbiddenError } from '@/shared/errors/ForbiddenError';
 import { NotFoundError } from '@/shared/errors/NotFoundError';
+import { ValidationError } from '@/shared/errors/ValidationError';
 import { Session } from '@/shared/types/session';
 import { completionBlockMessage, evaluateCompletion, syncCompletedStatus } from '@/modules/grades/completion.service';
 import { renderAttestationPdf, renderCertificatePdf } from './certificates.pdf';
@@ -12,6 +13,22 @@ async function loadStudent(id: string) {
   const s = await prisma.student.findUnique({ where: { id } });
   if (!s) throw new NotFoundError('aluno não encontrado');
   return s;
+}
+
+type RequestStatus = 'awaiting_payment' | 'ready' | 'issued';
+
+/**
+ * Solicitação "em andamento" bloqueia uma nova. No certificado conta também "ready"
+ * (pedido feito, aguardando a secretaria emitir), para não gerar pedidos duplicados.
+ */
+const isOpen = (type: FeeDocType, status: string) =>
+  status === 'awaiting_payment' || (type === 'certificate' && status === 'ready');
+
+async function loadCertificateRequest(requestId: string) {
+  const req = await prisma.documentRequest.findUnique({ where: { id: requestId } });
+  if (!req) throw new NotFoundError('solicitação não encontrada');
+  if (req.type !== 'certificate') throw new ValidationError('esta solicitação não é de certificado');
+  return req;
 }
 
 export const CertificatesService = {
@@ -26,7 +43,7 @@ export const CertificatesService = {
 
     const build = (type: FeeDocType) => {
       const list = requests.filter((r) => r.type === type);
-      const pending = list.find((r) => r.status === 'awaiting_payment');
+      const pending = list.find((r) => isOpen(type, r.status));
       const nextVia = list.length + 1;
       const eligible = type === 'certificate' ? completion.eligible : true;
       return {
@@ -45,6 +62,7 @@ export const CertificatesService = {
           status: r.status,
           feeAmount: Number(r.feeAmount),
           requestedAt: r.requestedAt,
+          issuedAt: r.issuedAt,
           invoice: r.invoice
             ? { id: r.invoice.id, dueDate: r.invoice.dueDate, status: r.invoice.status, amount: Number(r.invoice.amount) }
             : null,
@@ -66,6 +84,9 @@ export const CertificatesService = {
       if (existing.some((r) => r.status === 'awaiting_payment')) {
         throw new ConflictError('já existe uma taxa aguardando pagamento para este documento');
       }
+      if (type === 'certificate' && existing.some((r) => r.status === 'ready')) {
+        throw new ConflictError('já existe uma solicitação de certificado aguardando emissão pela secretaria');
+      }
       const via = existing.length + 1;
       const fee = feeForVia(type, via);
       let invoiceId: string | undefined;
@@ -86,20 +107,17 @@ export const CertificatesService = {
     });
   },
 
-  /** Aluno baixa uma via que já foi liberada (grátis ou taxa paga). */
+  /** Aluno baixa o ATESTADO já liberado (grátis ou taxa paga). O certificado não sai por aqui. */
   async download(requestId: string, session: Session, res: Response) {
     const req = await prisma.documentRequest.findUnique({ where: { id: requestId } });
     if (!req) throw new NotFoundError('solicitação não encontrada');
     if (session.type === 'student' && session.userId !== req.studentId) throw new ForbiddenError('acesso negado');
+    if (req.type === 'certificate') {
+      throw new ForbiddenError('o certificado é emitido pela secretaria: retire-o impresso, assinado e carimbado');
+    }
     if (req.status === 'awaiting_payment') throw new ForbiddenError('pague a taxa na secretaria para liberar este documento');
 
     const student = await loadStudent(req.studentId);
-    if (req.type === 'certificate') {
-      const c = await evaluateCompletion(student.id);
-      if (!c.eligible) throw new ForbiddenError(completionBlockMessage(c));
-      if (req.status === 'ready') await prisma.documentRequest.update({ where: { id: req.id }, data: { status: 'issued', issuedAt: new Date() } });
-      return renderCertificatePdf(student, c, req.via, res);
-    }
     if (req.status === 'ready') await prisma.documentRequest.update({ where: { id: req.id }, data: { status: 'issued', issuedAt: new Date() } });
     return renderAttestationPdf(student, req.via, res);
   },
@@ -108,10 +126,63 @@ export const CertificatesService = {
   async adminAttestation(studentId: string, res: Response) {
     renderAttestationPdf(await loadStudent(studentId), 1, res);
   },
-  async adminCertificate(studentId: string, force: boolean, res: Response) {
+  /** Prévia do certificado pela secretaria. Sem "force": as três condições valem sempre. */
+  async adminCertificate(studentId: string, res: Response) {
     const student = await loadStudent(studentId);
     const c = await evaluateCompletion(studentId);
-    if (!c.eligible && !force) throw new ForbiddenError(completionBlockMessage(c));
+    if (!c.eligible) throw new ForbiddenError(completionBlockMessage(c));
     renderCertificatePdf(student, c, 1, res);
+  },
+
+  /** Secretaria: lista as solicitações (com aluno, taxa e quem emitiu). */
+  async listRequests(filter: { type?: FeeDocType; status?: RequestStatus }) {
+    const rows = await prisma.documentRequest.findMany({
+      where: { type: filter.type, status: filter.status },
+      include: {
+        student: { select: { id: true, name: true, enrollment: true, status: true } },
+        invoice: { select: { status: true, dueDate: true, amount: true } },
+        issuedByAdmin: { select: { name: true, username: true } },
+      },
+      orderBy: { requestedAt: 'desc' },
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      type: r.type,
+      via: r.via,
+      status: r.status,
+      feeAmount: Number(r.feeAmount),
+      requestedAt: r.requestedAt,
+      issuedAt: r.issuedAt,
+      issuedByAdminName: r.issuedByAdmin ? r.issuedByAdmin.name || r.issuedByAdmin.username : null,
+      student: r.student,
+      invoice: r.invoice ? { ...r.invoice, amount: Number(r.invoice.amount) } : null,
+    }));
+  },
+
+  /**
+   * Secretaria baixa o PDF de uma solicitação de certificado para imprimir, assinar e carimbar.
+   * Usa o renderCertificatePdf atual (layout não muda), só com o número certo da via.
+   */
+  async adminRequestPdf(requestId: string, res: Response) {
+    const req = await loadCertificateRequest(requestId);
+    if (req.status === 'awaiting_payment') throw new ForbiddenError('a taxa desta via ainda não foi paga');
+    const student = await loadStudent(req.studentId);
+    const c = await evaluateCompletion(student.id);
+    if (!c.eligible) throw new ForbiddenError(completionBlockMessage(c));
+    renderCertificatePdf(student, c, req.via, res);
+  },
+
+  /** Secretaria marca como emitido (depois de imprimir, assinar e carimbar). Guarda quem e quando. */
+  async issue(adminId: string, requestId: string) {
+    const req = await loadCertificateRequest(requestId);
+    if (req.status === 'awaiting_payment') throw new ForbiddenError('a taxa desta via ainda não foi paga');
+    if (req.status === 'issued') throw new ConflictError('esta via já foi marcada como emitida');
+    // "where status: ready" evita marcar duas vezes se dois cliques chegarem juntos
+    const done = await prisma.documentRequest.updateMany({
+      where: { id: req.id, status: 'ready' },
+      data: { status: 'issued', issuedAt: new Date(), issuedByAdminId: adminId },
+    });
+    if (done.count !== 1) throw new ConflictError('esta via já foi marcada como emitida');
+    return { ok: true };
   },
 };
