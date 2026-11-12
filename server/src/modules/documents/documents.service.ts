@@ -1,48 +1,82 @@
 import fs from 'fs';
 import path from 'path';
-import { DocumentsRepository } from './documents.repository';
 import { UPLOAD_DIR } from '@/config/upload';
-import { DOCUMENT_TYPES } from '@/shared/constants/document-types';
-import { ValidationError } from '@/shared/errors/ValidationError';
+import { logger } from '@/config/logger';
+import { DOCUMENT_TYPE_LIST } from '@/shared/constants/document-types';
 import { ForbiddenError } from '@/shared/errors/ForbiddenError';
-import { Session } from '@/shared/types/session';
+import { NotFoundError } from '@/shared/errors/NotFoundError';
+import { DocumentsRepository } from './documents.repository';
+import { toAdminDocumentView, toStudentDocumentView } from './dto/document-response.dto';
+
+/** Apaga do disco os arquivos substituídos (o registro no banco já foi trocado). */
+function removeFiles(fileNames: string[]) {
+  for (const name of fileNames) {
+    fs.unlink(path.join(UPLOAD_DIR, path.basename(name)), (err) => {
+      if (err && err.code !== 'ENOENT') logger.warn({ err: err.message }, 'não foi possível apagar arquivo antigo de documento');
+    });
+  }
+}
+
+const fileData = (file: Express.Multer.File) => ({
+  originalName: file.originalname,
+  fileName: file.filename,
+  mimetype: file.mimetype,
+  size: file.size,
+});
 
 export const DocumentsService = {
-  // admin: GET /documents/:studentId
-  async listByStudent(studentId: string, session: Session) {
-    if (session.type === 'student' && session.userId !== studentId) {
-      throw new ForbiddenError('access denied');
-    }
-    return DocumentsRepository.findByStudent(studentId);
+  listTypes: () => DOCUMENT_TYPE_LIST,
+
+  // aluno: GET /documents (o id vem da sessão, nunca da URL)
+  async listOwn(studentId: string) {
+    return (await DocumentsRepository.findByStudent(studentId)).map(toStudentDocumentView);
   },
 
-  // student: GET /documents (own, uses session)
-  listOwn(session: Session) {
-    return DocumentsRepository.findByStudent(session.userId);
+  // secretaria: GET /documents/:studentId
+  async listByStudent(studentId: string) {
+    return (await DocumentsRepository.findByStudentWithAdmins(studentId)).map(toAdminDocumentView);
   },
 
-  async upload(studentId: string, type: string, file: Express.Multer.File) {
-    if (!DOCUMENT_TYPES.includes(type as any)) {
-      throw new ValidationError('invalid document type');
+  /** Aluno envia ou reenvia. Pode quando não enviou, está pendente ou foi recusado; aprovado fica bloqueado. */
+  async uploadByStudent(studentId: string, type: string, file: Express.Multer.File) {
+    const current = await DocumentsRepository.findCurrent(studentId, type);
+    if (current?.status === 'approved') {
+      throw new ForbiddenError('este documento já foi aprovado; para trocar, procure a secretaria');
     }
-
-    const existing = await DocumentsRepository.findByStudentAndType(studentId, type);
-    for (const doc of existing) {
-      const filePath = path.join(UPLOAD_DIR, doc.fileName);
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-    }
-    await DocumentsRepository.deleteByStudentAndType(studentId, type);
-
-    return DocumentsRepository.create({
-      type,
-      originalName: file.originalname,
-      fileName: file.filename,
-      mimetype: file.mimetype,
-      size: file.size,
-      student: { connect: { id: studentId } },
+    const { created, oldFileNames } = await DocumentsRepository.replaceCurrent(studentId, type, {
+      ...fileData(file),
+      status: 'pending',
+      uploadedBy: 'student',
     });
+    removeFiles(oldFileNames);
+    return toStudentDocumentView(created);
   },
 
-  review: (id: string, status: 'approved' | 'rejected', note?: string) =>
-    DocumentsRepository.updateStatus(id, status, note),
+  /**
+   * Secretaria anexa para um aluno (ex.: documento entregue em papel).
+   * Com approve=true o documento já nasce aprovado, com quem aprovou e quando — o aluno vê ao abrir a página.
+   */
+  async uploadByAdmin(adminId: string, studentId: string, type: string, approve: boolean, file: Express.Multer.File) {
+    if (!(await DocumentsRepository.studentExists(studentId))) throw new NotFoundError('aluno não encontrado');
+
+    const now = new Date();
+    const { created, oldFileNames } = await DocumentsRepository.replaceCurrent(studentId, type, {
+      ...fileData(file),
+      uploadedBy: 'admin',
+      uploadedByAdminId: adminId,
+      status: approve ? 'approved' : 'pending',
+      reviewedByAdminId: approve ? adminId : null,
+      reviewedAt: approve ? now : null,
+    });
+    removeFiles(oldFileNames);
+
+    return toAdminDocumentView(await DocumentsRepository.findByIdWithAdmins(created.id));
+  },
+
+  /** Só a secretaria. Recusa exige motivo (validado no Zod); ao aprovar, o motivo antigo é limpo. */
+  async review(adminId: string, id: string, status: 'approved' | 'rejected', note?: string) {
+    if (!(await DocumentsRepository.findById(id))) throw new NotFoundError('documento não encontrado');
+    const updated = await DocumentsRepository.review(id, status, status === 'rejected' ? note ?? null : null, adminId);
+    return toAdminDocumentView(updated);
+  },
 };
