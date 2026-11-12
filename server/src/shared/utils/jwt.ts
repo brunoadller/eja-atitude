@@ -53,3 +53,25 @@ export function verifyResetToken(token: string): { studentId: string; resetId: s
     throw new UnauthorizedError('o link de redefinição expirou, recomece o processo');
   }
 }
+
+// Mesma ideia para a secretaria, com "purpose" diferente: um token de aluno não serve na rota do admin (e vice-versa).
+export function signAdminResetToken(adminId: string, resetId: string): string {
+  return jwt.sign({ purpose: 'admin-pwd-reset', rid: resetId }, env.JWT_SECRET, {
+    subject: adminId,
+    issuer: ISSUER,
+    algorithm: 'HS256',
+    expiresIn: '10m',
+  });
+}
+
+export function verifyAdminResetToken(token: string): { adminId: string; resetId: string } {
+  try {
+    const d = jwt.verify(token, env.JWT_SECRET, { issuer: ISSUER, algorithms: ['HS256'] });
+    if (typeof d === 'string' || d.purpose !== 'admin-pwd-reset' || !d.sub || typeof d.rid !== 'string') {
+      throw new Error('token de redefinição inválido');
+    }
+    return { adminId: d.sub, resetId: d.rid };
+  } catch {
+    throw new UnauthorizedError('o link de redefinição expirou, recomece o processo');
+  }
+}

@@ -21,6 +21,12 @@ const envSchema = z
     SMTP_PASS: z.string().optional(),
     MAIL_FROM: z.string().default('EJA Atitude <nao-responder@localhost>'),
 
+    // Opcional: o seed usa para preencher o e-mail de recuperação do admin (vazio = não usar).
+    ADMIN_EMAIL: z.preprocess(
+      (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
+      z.string().trim().toLowerCase().pipe(z.email('ADMIN_EMAIL precisa ser um e-mail válido')).optional(),
+    ),
+
     FIRST_VIA_FREE: bool('true'),
     ENFORCE_PAYMENT_FOR_EXAMS: bool('true'),
   })
