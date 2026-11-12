@@ -73,7 +73,7 @@ export function renderCertificatePdf(student: Student, completion: Completion, v
 
   // ── Página 1: cabeçalho ──
   const brasao = path.join(ASSETS, 'brasao.png');
-  const logo = path.join(ASSETS, 'logo-unitec.png');
+  const logo = path.join(ASSETS, SCHOOL.logoPdf); // logo da escola (config/school.ts), mesmo lugar e largura do antigo
   if (fs.existsSync(brasao)) doc.image(brasao, L + 12, 24, { height: 64 });
   if (fs.existsSync(logo)) doc.image(logo, W - L - 118, 34, { width: 108 });
 
