@@ -135,7 +135,20 @@ export interface DocRequest {
   status: 'awaiting_payment' | 'ready' | 'issued';
   feeAmount: number;
   requestedAt: string;
+  issuedAt?: string | null;
   invoice: { id: string; dueDate: string; status: 'open' | 'paid'; amount: number } | null;
+}
+
+/** Uma das três condições do certificado (notas, parcelas, documentos). */
+export interface CompletionCheck {
+  ok: boolean;
+  missing: string[];
+}
+
+export interface CertificateChecks {
+  grades: CompletionCheck;
+  installments: CompletionCheck;
+  documents: CompletionCheck & { approved: number; total: number };
 }
 
 export interface DocStatus {
@@ -145,6 +158,8 @@ export interface DocStatus {
   fee: number;
   eligible: boolean;
   reasons: string[];
+  /** Só no certificado: as três condições separadas. */
+  checks?: CertificateChecks | null;
   canRequest: boolean;
   requests: DocRequest[];
 }

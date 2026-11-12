@@ -2,7 +2,7 @@ import {
   IoBookOutline,
   IoCreateOutline, IoDocumentTextOutline,
   IoGridOutline, IoIdCardOutline,
-  IoPersonCircleOutline,
+  IoPersonCircleOutline, IoRibbonOutline,
   IoStatsChartOutline, IoWalletOutline
 } from "react-icons/io5";
 import { Outlet } from 'react-router-dom';
@@ -13,6 +13,7 @@ const items: NavItem[] = [
   { to: '/', label: 'Dashboard', icon: <IoGridOutline size={20}  />, end: true },
   { to: '/alunos', label: 'Alunos', icon: <IoIdCardOutline size={20}/> },
   { to: '/documentos', label: 'Documentos', icon: <IoDocumentTextOutline size={20}/>},
+  { to: '/certificados', label: 'Certificados', icon: <IoRibbonOutline size={20}/>},
   { to: '/notas', label: 'Notas', icon: <IoStatsChartOutline size={20}/>},
   { to: '/boletos', label: 'Boletos', icon: <IoWalletOutline  size={20}/>},
   { to: '/apostilas', label: 'Apostilas', icon: <IoBookOutline size={20}/>},

@@ -15,6 +15,18 @@ export const CertificatesController = {
     try { await CertificatesService.adminAttestation(req.params.studentId, res); } catch (err) { next(err); }
   },
   async adminCertificate(req: Request, res: Response, next: NextFunction) {
-    try { await CertificatesService.adminCertificate(req.params.studentId, req.query.force === '1', res); } catch (err) { next(err); }
+    try { await CertificatesService.adminCertificate(req.params.studentId, res); } catch (err) { next(err); }
+  },
+  async listRequests(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { type, status } = req.query as { type?: 'attestation' | 'certificate'; status?: 'awaiting_payment' | 'ready' | 'issued' };
+      res.json(await CertificatesService.listRequests({ type, status }));
+    } catch (err) { next(err); }
+  },
+  async adminRequestPdf(req: Request, res: Response, next: NextFunction) {
+    try { await CertificatesService.adminRequestPdf(req.params.id, res); } catch (err) { next(err); }
+  },
+  async issue(req: Request, res: Response, next: NextFunction) {
+    try { res.json(await CertificatesService.issue(req.session!.userId, req.params.id)); } catch (err) { next(err); }
   },
 };

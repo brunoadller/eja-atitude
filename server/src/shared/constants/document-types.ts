@@ -25,7 +25,17 @@ export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   birth_certificate: 'Certidão de Nascimento',
 };
 
-export const DOCUMENT_TYPE_LIST = DOCUMENT_TYPES.map((type) => ({ type, label: DOCUMENT_TYPE_LABELS[type] }));
+/**
+ * Documentos obrigatórios para o certificado (todos aprovados pela secretaria).
+ * A Reservista fica de fora porque é "se possuir".
+ */
+export const REQUIRED_DOCUMENT_TYPES: readonly DocumentType[] = DOCUMENT_TYPES.filter((t) => t !== 'military_certificate');
+
+export const DOCUMENT_TYPE_LIST = DOCUMENT_TYPES.map((type) => ({
+  type,
+  label: DOCUMENT_TYPE_LABELS[type],
+  required: REQUIRED_DOCUMENT_TYPES.includes(type),
+}));
 
 /** Status de um documento (no banco e no código em inglês; na tela: pendente, aprovado, recusado). */
 export const DOCUMENT_STATUSES = ['pending', 'approved', 'rejected'] as const;

@@ -5,6 +5,7 @@ import { logger } from '@/config/logger';
 import { DOCUMENT_TYPE_LIST } from '@/shared/constants/document-types';
 import { ForbiddenError } from '@/shared/errors/ForbiddenError';
 import { NotFoundError } from '@/shared/errors/NotFoundError';
+import { syncCompletedStatus } from '@/modules/grades/completion.service';
 import { DocumentsRepository } from './documents.repository';
 import { toAdminDocumentView, toStudentDocumentView } from './dto/document-response.dto';
 
@@ -69,14 +70,17 @@ export const DocumentsService = {
       reviewedAt: approve ? now : null,
     });
     removeFiles(oldFileNames);
+    if (approve) await syncCompletedStatus(studentId); // notas + documentos em dia → Concluído
 
     return toAdminDocumentView(await DocumentsRepository.findByIdWithAdmins(created.id));
   },
 
   /** Só a secretaria. Recusa exige motivo (validado no Zod); ao aprovar, o motivo antigo é limpo. */
   async review(adminId: string, id: string, status: 'approved' | 'rejected', note?: string) {
-    if (!(await DocumentsRepository.findById(id))) throw new NotFoundError('documento não encontrado');
+    const doc = await DocumentsRepository.findById(id);
+    if (!doc) throw new NotFoundError('documento não encontrado');
     const updated = await DocumentsRepository.review(id, status, status === 'rejected' ? note ?? null : null, adminId);
+    if (status === 'approved') await syncCompletedStatus(doc.studentId); // notas + documentos em dia → Concluído
     return toAdminDocumentView(updated);
   },
 };

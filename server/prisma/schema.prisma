@@ -124,6 +124,7 @@ model Admin {
   passwordResets    AdminPasswordReset[]
   uploadedDocuments StudentDocument[]    @relation("DocumentUploadedBy")
   reviewedDocuments StudentDocument[]    @relation("DocumentReviewedBy")
+  issuedRequests    DocumentRequest[]    @relation("RequestIssuedBy")
 
   @@map("admins")
 }
@@ -241,9 +242,13 @@ model DocumentRequest {
   status      String    @default("ready")
   requestedAt DateTime  @default(now()) @map("solicitado_em")
   issuedAt    DateTime? @map("emitido_em")
+  // Certificado: qual admin marcou como emitido (depois de imprimir, assinar e carimbar).
+  issuedByAdminId String? @map("emitido_por_admin_id")
 
   student     Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
   invoice     Invoice?  @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  // SetNull: se o admin for apagado, a solicitação continua (só perde a referência de quem emitiu).
+  issuedByAdmin Admin? @relation("RequestIssuedBy", fields: [issuedByAdminId], references: [id], onDelete: SetNull)
 
   @@index([studentId, type])
   @@map("solicitacoes_documentos")
