@@ -101,18 +101,6 @@ export interface DocumentTypeInfo {
   label: string;
 }
 
-export const DOCUMENT_TYPES: { type: string; label: string }[] = [
-  { type: 'transcript', label: 'Histórico Escolar (Fundamental)' },
-  { type: 'id_card', label: 'Carteira de Identidade' },
-  { type: 'cpf', label: 'CPF' },
-  { type: 'proof_of_address', label: 'Comprovante de Residência' },
-  { type: 'voter_id', label: 'Título de Eleitor' },
-  { type: 'photo_1', label: 'Foto 3x4 (1)' },
-  { type: 'photo_2', label: 'Foto 3x4 (2)' },
-  { type: 'military_certificate', label: 'Certificado de Reservista (se possuir)' },
-  { type: 'birth_certificate', label: 'Certidão de Nascimento' },
-];
-
 export interface ClassSession {
   id: string;
   classGroup: string;
