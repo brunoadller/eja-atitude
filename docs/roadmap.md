@@ -8,6 +8,8 @@
 ## Próximos pedidos
 - 5.3: lista de documentos obrigatórios e o certificado passar a exigir que todos estejam aprovados.
   Hoje o `server/src/modules/grades/completion.service.ts` só confere notas e parcelas, e o CLAUDE.md exige também a documentação aprovada.
+- A confirmar: regra das notas. O CLAUDE.md diz "uma nota por prova (correção geral)", mas o sistema lança e confere
+  nota por disciplina dentro de cada prova (5,0 em cada uma). Mantido assim no 5.3; mudar mexe no lançamento de notas.
 
 ## Antes do deploy em produção
 1. No Neon, criar uma branch de backup a partir da produção.

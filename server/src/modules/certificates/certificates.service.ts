@@ -5,7 +5,7 @@ import { ConflictError } from '@/shared/errors/ConflictError';
 import { ForbiddenError } from '@/shared/errors/ForbiddenError';
 import { NotFoundError } from '@/shared/errors/NotFoundError';
 import { Session } from '@/shared/types/session';
-import { evaluateCompletion } from '@/modules/grades/completion.service';
+import { completionBlockMessage, evaluateCompletion } from '@/modules/grades/completion.service';
 import { renderAttestationPdf, renderCertificatePdf } from './certificates.pdf';
 
 async function loadStudent(id: string) {
@@ -34,6 +34,8 @@ export const CertificatesService = {
         fee: feeForVia(type, nextVia),
         eligible,
         reasons: type === 'certificate' ? completion.reasons : [],
+        // só para o certificado: as três condições separadas (notas, parcelas, documentos) para a tela mostrar cada etapa
+        checks: type === 'certificate' ? completion.checks : null,
         canRequest: eligible && !pending,
         requests: list.map((r) => ({
           id: r.id,
@@ -54,7 +56,8 @@ export const CertificatesService = {
   async request(studentId: string, type: FeeDocType) {
     if (type === 'certificate') {
       const c = await evaluateCompletion(studentId);
-      if (!c.eligible) throw new ForbiddenError(`certificado ainda não liberado: ${c.reasons.join('; ')}`);
+      // validação no servidor: as três condições ao mesmo tempo (não confia só na tela)
+      if (!c.eligible) throw new ForbiddenError(completionBlockMessage(c));
     }
     return prisma.$transaction(async (tx) => {
       const existing = await tx.documentRequest.findMany({ where: { studentId, type } });
@@ -91,7 +94,7 @@ export const CertificatesService = {
     const student = await loadStudent(req.studentId);
     if (req.type === 'certificate') {
       const c = await evaluateCompletion(student.id);
-      if (!c.eligible) throw new ForbiddenError(`certificado não liberado: ${c.reasons.join('; ')}`);
+      if (!c.eligible) throw new ForbiddenError(completionBlockMessage(c));
       if (req.status === 'ready') await prisma.documentRequest.update({ where: { id: req.id }, data: { status: 'issued', issuedAt: new Date() } });
       return renderCertificatePdf(student, c, req.via, res);
     }
@@ -106,7 +109,7 @@ export const CertificatesService = {
   async adminCertificate(studentId: string, force: boolean, res: Response) {
     const student = await loadStudent(studentId);
     const c = await evaluateCompletion(studentId);
-    if (!c.eligible && !force) throw new ForbiddenError(`certificado não liberado: ${c.reasons.join('; ')}`);
+    if (!c.eligible && !force) throw new ForbiddenError(completionBlockMessage(c));
     renderCertificatePdf(student, c, 1, res);
   },
 };

@@ -1,5 +1,6 @@
 import { prisma } from '@/config/database';
 import { classGroupFor, ModuleNumber } from '@/shared/constants/curriculum';
+import { DOCUMENT_TYPE_LABELS, REQUIRED_DOCUMENT_TYPES } from '@/shared/constants/document-types';
 import { PASSING_SCORE } from '@/shared/constants/fees';
 import { NotFoundError } from '@/shared/errors/NotFoundError';
 import { fmtDate } from '@/shared/utils/dates';
@@ -12,19 +13,38 @@ export interface RequiredItem {
   state: 'passed' | 'failed' | 'missing';
 }
 
+/** Uma das três condições do certificado: cumprida (ok) ou a lista do que falta, em português. */
+export interface CompletionCheck {
+  ok: boolean;
+  missing: string[];
+}
+
+export interface DocumentsCheck extends CompletionCheck {
+  approved: number;
+  total: number;
+}
+
 export interface Completion {
+  /** true só quando as três condições estão cumpridas ao mesmo tempo. */
   eligible: boolean;
+  /** Tudo o que falta, numa lista só (mesmo conteúdo de checks). */
   reasons: string[];
+  checks: {
+    grades: CompletionCheck;
+    installments: CompletionCheck;
+    documents: DocumentsCheck;
+  };
   required: RequiredItem[];
   /** disciplina -> módulo -> melhor nota (para o histórico) */
   matrix: Record<string, Record<number, number>>;
 }
 
 /**
- * Regras do certificado (arquivo de orientações):
- *  - nota mínima 5,0 em CADA disciplina/módulo das provas do aluno (a recuperação conta; se ela ainda está pendente, continua bloqueado)
- *  - todas as provas concluídas
- *  - todas as parcelas quitadas
+ * Regras do certificado (certificado = diploma). Só pode solicitar com as TRÊS cumpridas:
+ *  (a) notas: nota mínima 5,0 em CADA disciplina/módulo das provas do aluno, todas concluídas
+ *      (a recuperação conta; se ela ainda está pendente, continua bloqueado)
+ *  (b) parcelas: todas quitadas
+ *  (c) documentos: todos os obrigatórios (REQUIRED_DOCUMENT_TYPES) aprovados pela secretaria
  */
 export async function evaluateCompletion(studentId: string): Promise<Completion> {
   const student = await prisma.student.findUnique({ where: { id: studentId } });
@@ -34,10 +54,14 @@ export async function evaluateCompletion(studentId: string): Promise<Completion>
   const groups: string[] = [];
   for (let m = student.startModuleNumber; m <= student.moduleNumber; m++) groups.push(classGroupFor(year, m as ModuleNumber));
 
-  const [rounds, grades, openInstallments] = await Promise.all([
+  const [rounds, grades, openInstallments, documents] = await Promise.all([
     prisma.examRound.findMany({ where: { classGroup: { in: groups } }, include: { items: true }, orderBy: { roundNumber: 'asc' } }),
     prisma.grade.findMany({ where: { studentId } }),
     prisma.invoice.findMany({ where: { studentId, kind: 'installment', status: { not: 'paid' } }, orderBy: { dueDate: 'asc' } }),
+    prisma.studentDocument.findMany({
+      where: { studentId, type: { in: [...REQUIRED_DOCUMENT_TYPES] } },
+      select: { type: true, status: true },
+    }),
   ]);
 
   const bestScore = (subject: string, m: number | null): number | null => {
@@ -56,16 +80,43 @@ export async function evaluateCompletion(studentId: string): Promise<Completion>
     }),
   );
 
-  const reasons: string[] = [];
-  if (!rounds.length) reasons.push('o cronograma de provas ainda não foi cadastrado');
+  // (a) notas
+  const gradesMissing: string[] = [];
+  if (!rounds.length) gradesMissing.push('o cronograma de provas ainda não foi cadastrado');
   const label = (i: RequiredItem) => `${i.subject}${i.componentModule ? ` (módulo ${i.componentModule})` : ''}`;
-  for (const i of required.filter((x) => x.state === 'missing')) reasons.push(`prova pendente: ${label(i)} — prova ${i.roundNumber}`);
+  for (const i of required.filter((x) => x.state === 'missing')) gradesMissing.push(`prova pendente: ${label(i)} — prova ${i.roundNumber}`);
   for (const i of required.filter((x) => x.state === 'failed')) {
-    reasons.push(`média abaixo de ${PASSING_SCORE.toFixed(1).replace('.', ',')} em ${label(i)} — recuperação necessária`);
+    gradesMissing.push(`média abaixo de ${PASSING_SCORE.toFixed(1).replace('.', ',')} em ${label(i)} — recuperação necessária`);
   }
+
+  // (b) parcelas
+  const installmentsMissing: string[] = [];
   if (openInstallments.length) {
-    reasons.push(`${openInstallments.length} parcela(s) em aberto (próxima: ${fmtDate(openInstallments[0].dueDate)})`);
+    installmentsMissing.push(`${openInstallments.length} parcela(s) em aberto (próxima: ${fmtDate(openInstallments[0].dueDate)})`);
   }
+
+  // (c) documentos obrigatórios aprovados
+  const documentsMissing: string[] = [];
+  for (const type of REQUIRED_DOCUMENT_TYPES) {
+    const doc = documents.find((d) => d.type === type);
+    const name = DOCUMENT_TYPE_LABELS[type];
+    if (!doc) documentsMissing.push(`${name}: não enviado`);
+    else if (doc.status === 'pending') documentsMissing.push(`${name}: em análise pela secretaria`);
+    else if (doc.status === 'rejected') documentsMissing.push(`${name}: recusado — reenvie`);
+  }
+  const approvedDocs = REQUIRED_DOCUMENT_TYPES.length - documentsMissing.length;
+
+  const checks: Completion['checks'] = {
+    grades: { ok: gradesMissing.length === 0, missing: gradesMissing },
+    installments: { ok: installmentsMissing.length === 0, missing: installmentsMissing },
+    documents: {
+      ok: documentsMissing.length === 0,
+      missing: documentsMissing,
+      approved: approvedDocs,
+      total: REQUIRED_DOCUMENT_TYPES.length,
+    },
+  };
+  const reasons = [...gradesMissing, ...installmentsMissing, ...documentsMissing];
 
   const matrix: Completion['matrix'] = {};
   for (const g of grades) {
@@ -74,5 +125,14 @@ export async function evaluateCompletion(studentId: string): Promise<Completion>
     row[g.componentModule] = Math.max(row[g.componentModule] ?? 0, Number(g.score));
   }
 
-  return { eligible: reasons.length === 0, reasons, required, matrix };
+  return { eligible: reasons.length === 0, reasons, checks, required, matrix };
+}
+
+/** Mensagem de erro em português dizendo qual condição falta (usada quando o servidor recusa o certificado). */
+export function completionBlockMessage(c: Completion): string {
+  const parts: string[] = [];
+  if (!c.checks.grades.ok) parts.push(`notas — ${c.checks.grades.missing.join('; ')}`);
+  if (!c.checks.installments.ok) parts.push(`parcelas — ${c.checks.installments.missing.join('; ')}`);
+  if (!c.checks.documents.ok) parts.push(`documentos — ${c.checks.documents.missing.join('; ')}`);
+  return `certificado ainda não liberado. Falta: ${parts.join(' | ')}`;
 }
