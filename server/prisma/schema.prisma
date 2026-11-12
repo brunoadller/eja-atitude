@@ -121,7 +121,9 @@ model Admin {
   tokenVersion Int      @default(0) @map("token_version")
   createdAt    DateTime @default(now()) @map("created_at")
 
-  passwordResets AdminPasswordReset[]
+  passwordResets    AdminPasswordReset[]
+  uploadedDocuments StudentDocument[]    @relation("DocumentUploadedBy")
+  reviewedDocuments StudentDocument[]    @relation("DocumentReviewedBy")
 
   @@map("admins")
 }
@@ -151,12 +153,22 @@ model StudentDocument {
   fileName      String    @map("nome_arquivo")
   mimetype      String
   size          Int       @map("tamanho")
-  status        String    @default("pendente")
+  // pending | approved | rejected (textos em português só na tela)
+  status        String    @default("pending")
+  // Se recusado: motivo informado pela secretaria (o aluno vê e reenvia).
   note          String?   @map("observacao") @db.Text
   uploadedAt    DateTime  @default(now()) @map("enviado_em")
-  reviewedAt    DateTime? @map("analisado_em")
+  // Quem anexou: student | admin. Se foi a secretaria, uploadedByAdminId diz qual admin.
+  uploadedBy        String    @default("student") @map("enviado_por")
+  uploadedByAdminId String?   @map("enviado_por_admin_id")
+  // Quem aprovou/recusou (reviewedAt = quando).
+  reviewedByAdminId String?   @map("analisado_por_admin_id")
+  reviewedAt        DateTime? @map("analisado_em")
 
   student       Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  // SetNull: se um admin for apagado, o documento continua (só perde a referência de quem fez).
+  uploadedByAdmin Admin? @relation("DocumentUploadedBy", fields: [uploadedByAdminId], references: [id], onDelete: SetNull)
+  reviewedByAdmin Admin? @relation("DocumentReviewedBy", fields: [reviewedByAdminId], references: [id], onDelete: SetNull)
 
   @@index([studentId])
   @@index([type])

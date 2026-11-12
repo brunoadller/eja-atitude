@@ -3,20 +3,33 @@ import path from 'path';
 import { UPLOAD_DIR } from '@/config/upload';
 import { ForbiddenError } from '@/shared/errors/ForbiddenError';
 import { NotFoundError } from '@/shared/errors/NotFoundError';
+import { ValidationError } from '@/shared/errors/ValidationError';
 import { DocumentsRepository } from './documents.repository';
 import { DocumentsService } from './documents.service';
 
 export const DocumentsController = {
+  types(_req: Request, res: Response) {
+    res.json(DocumentsService.listTypes());
+  },
   async listOwn(req: Request, res: Response, next: NextFunction) {
-    try { res.json(await DocumentsService.listOwn(req.session!)); } catch (err) { next(err); }
+    try { res.json(await DocumentsService.listOwn(req.session!.userId)); } catch (err) { next(err); }
   },
   async listByStudent(req: Request, res: Response, next: NextFunction) {
-    try { res.json(await DocumentsService.listByStudent(req.params.studentId, req.session!)); } catch (err) { next(err); }
+    try { res.json(await DocumentsService.listByStudent(req.params.studentId)); } catch (err) { next(err); }
   },
   async upload(req: Request, res: Response, next: NextFunction) {
     try {
-      if (!req.file) throw new NotFoundError('arquivo não enviado');
-      res.status(201).json(await DocumentsService.upload(req.session!.userId, req.body.type, req.file));
+      if (!req.file) throw new ValidationError('selecione um arquivo');
+      res.status(201).json(await DocumentsService.uploadByStudent(req.session!.userId, req.body.type, req.file));
+    } catch (err) { next(err); }
+  },
+  async uploadByAdmin(req: Request, res: Response, next: NextFunction) {
+    try {
+      if (!req.file) throw new ValidationError('selecione um arquivo');
+      const { type, approve } = req.body as { type: string; approve: boolean };
+      res.status(201).json(
+        await DocumentsService.uploadByAdmin(req.session!.userId, req.params.studentId, type, approve, req.file),
+      );
     } catch (err) { next(err); }
   },
   async download(req: Request, res: Response, next: NextFunction) {
@@ -32,6 +45,8 @@ export const DocumentsController = {
     } catch (err) { next(err); }
   },
   async review(req: Request, res: Response, next: NextFunction) {
-    try { res.json(await DocumentsService.review(req.params.id, req.body.status, req.body.note)); } catch (err) { next(err); }
+    try {
+      res.json(await DocumentsService.review(req.session!.userId, req.params.id, req.body.status, req.body.note));
+    } catch (err) { next(err); }
   },
 };
