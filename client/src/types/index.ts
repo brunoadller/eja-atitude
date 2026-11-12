@@ -84,8 +84,21 @@ export interface StudentDocument {
   type: string;
   originalName: string;
   status: 'pending' | 'approved' | 'rejected';
+  /** Motivo da recusa (o aluno vê). */
   note?: string | null;
   uploadedAt: string;
+  /** Quem anexou: o próprio aluno ou a secretaria. */
+  uploadedBy: 'student' | 'admin';
+  reviewedAt?: string | null;
+  /** Só na visão da secretaria: nome de quem anexou / analisou. */
+  uploadedByAdminName?: string | null;
+  reviewedByAdminName?: string | null;
+}
+
+/** Tipo de documento como vem de GET /api/documents/types. */
+export interface DocumentTypeInfo {
+  type: string;
+  label: string;
 }
 
 export const DOCUMENT_TYPES: { type: string; label: string }[] = [

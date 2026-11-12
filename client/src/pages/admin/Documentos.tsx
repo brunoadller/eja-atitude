@@ -1,14 +1,21 @@
-import { useEffect, useMemo, useState } from 'react';
-import { IoCheckmarkCircle, IoCloseCircle, IoTimeOutline, IoDownloadOutline } from 'react-icons/io5';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
+import {
+  IoAttachOutline, IoCheckmarkCircle, IoCloseCircle, IoDownloadOutline, IoTimeOutline,
+} from 'react-icons/io5';
 import { api } from '../../lib/api';
 import { useToast } from '../../lib/toast';
-import type { Student, StudentDocument } from '../../types';
-import { DOCUMENT_TYPES } from '../../types';
+import type { DocumentTypeInfo, Student, StudentDocument } from '../../types';
 import PageHeader, { Empty } from '../../components/PageHeader';
 import Modal from '../../components/Modal';
 
+const FORMATOS_ACEITOS = ['application/pdf', 'image/jpeg', 'image/png'];
+const TAMANHO_MAX_BYTES = 5 * 1024 * 1024; // 5MB (mesmo limite do servidor)
+
+/** Data e hora no fuso de quem está vendo (ex.: 12/11/2026 14:30). */
+const quando = (d?: string | null) =>
+  d ? new Date(d).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '';
+
 export default function AdminDocumentos() {
-  const toast = useToast();
   const [alunos, setAlunos] = useState<Student[]>([]);
   const [contagens, setContagens] = useState<Record<string, number>>({});
   const [busca, setBusca] = useState('');
@@ -118,9 +125,8 @@ function RevisaoModal({
   onClose: () => void;
   onAtualizado: (pendentes: number) => void;
 }) {
-  const toast = useToast();
+  const [tipos, setTipos] = useState<DocumentTypeInfo[]>([]);
   const [docs, setDocs] = useState<StudentDocument[]>([]);
-  const [observacoes, setObservacoes] = useState<Record<string, string>>({});
 
   const load = () =>
     api<StudentDocument[]>(`/documents/${aluno.id}`).then((d) => {
@@ -129,78 +135,200 @@ function RevisaoModal({
     });
 
   useEffect(() => {
+    // a lista de tipos vem do servidor (fonte única)
+    api<DocumentTypeInfo[]>('/documents/types').then(setTipos).catch(() => {});
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function decidir(doc:StudentDocument, status: 'aprovado' | 'rejeitado') {
+  return (
+    <Modal title={`Documentos de ${aluno.name}`} onClose={onClose} size="lg">
+      <div>
+        {tipos.map(({ type, label }) => (
+          <DocumentoLinha
+            key={type}
+            alunoId={aluno.id}
+            tipo={type}
+            label={label}
+            doc={docs.find((d) => d.type === type)}
+            onMudou={load}
+          />
+        ))}
+      </div>
+    </Modal>
+  );
+}
+
+/** Uma linha por tipo: status, quem fez o quê, e as ações Baixar / Aprovar / Recusar / Anexar. */
+function DocumentoLinha({
+  alunoId,
+  tipo,
+  label,
+  doc,
+  onMudou,
+}: {
+  alunoId: string;
+  tipo: string;
+  label: string;
+  doc?: StudentDocument;
+  onMudou: () => void;
+}) {
+  const toast = useToast();
+  const [modo, setModo] = useState<'nenhum' | 'recusar' | 'anexar'>('nenhum');
+  const [motivo, setMotivo] = useState('');
+  const [arquivo, setArquivo] = useState<File | null>(null);
+  const [jaAprovar, setJaAprovar] = useState(true);
+  const [busy, setBusy] = useState(false);
+
+  function fechar() {
+    setModo('nenhum');
+    setMotivo('');
+    setArquivo(null);
+    setJaAprovar(true);
+  }
+
+  async function executar(acao: () => Promise<unknown>, sucesso: string) {
+    setBusy(true);
     try {
-      await api(`/documents/${doc.id}/review`, { method: 'PUT', body: { status: status === 'aprovado' ? 'approved' : 'rejected', note: observacoes[doc.id] || undefined } });
-      toast(status === 'aprovado' ? 'Documento aprovado' : 'Documento rejeitado', 'success');
-      load();
+      await acao();
+      toast(sucesso, 'success');
+      fechar();
+      onMudou();
     } catch (e: any) {
-      toast('Erro: ' + e.message, 'error');
+      toast(e.message, 'error');
+    } finally {
+      setBusy(false);
     }
   }
 
-  const porTipo = (tipo: string) => docs.find((d) => d.type === tipo);
+  const aprovar = () =>
+    executar(
+      () => api(`/documents/${doc!.id}/review`, { method: 'PUT', body: { status: 'approved' } }),
+      'Documento aprovado.',
+    );
+
+  function recusar(e: FormEvent) {
+    e.preventDefault();
+    if (motivo.trim().length < 3) return toast('Informe o motivo da recusa.', 'error');
+    executar(
+      () => api(`/documents/${doc!.id}/review`, { method: 'PUT', body: { status: 'rejected', note: motivo.trim() } }),
+      'Documento recusado. O aluno verá o motivo.',
+    );
+  }
+
+  function anexar(e: FormEvent) {
+    e.preventDefault();
+    if (!arquivo) return toast('Selecione um arquivo.', 'error');
+    if (!FORMATOS_ACEITOS.includes(arquivo.type)) return toast('Formato não permitido. Envie PDF, JPG ou PNG.', 'error');
+    if (arquivo.size > TAMANHO_MAX_BYTES) return toast('Arquivo maior que 5MB.', 'error');
+
+    const form = new FormData();
+    form.append('type', tipo);
+    form.append('approve', String(jaAprovar));
+    form.append('file', arquivo);
+    executar(
+      () => api(`/documents/${alunoId}`, { method: 'POST', body: form }),
+      jaAprovar ? 'Documento anexado e aprovado.' : 'Documento anexado. Ficou pendente de análise.',
+    );
+  }
 
   return (
-    <Modal title={`Documentos de ${aluno.name}`} onClose={onClose} size="lg">
-      <div className="space-y-3">
-        {DOCUMENT_TYPES.map(({ type, label }) => {
-          const doc = porTipo(type);
-          if (!doc) {
-            return (
-              <div key={type} className="flex items-center justify-between py-2 border-b border-slate-100">
-                <div className="text-sm">{label}</div>
-                <span className="text-xs text-slate-400">Não enviado</span>
-              </div>
-            );
-          }
-          return (
-            <div key={type} className="py-2 border-b border-slate-100">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-sm font-medium">{label}</div>
-                  <StatusLine doc={doc} />
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <a
-                    href={`/api/documents/${aluno.id}/${doc.id}/download`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="btn-ghost btn-sm"
-                    title="Baixar/visualizar"
-                  >
-                    <IoDownloadOutline />
-                  </a>
-                  {doc.status !== 'approved' && (
-                    <button className="btn-ghost btn-sm text-emerald-600" onClick={() => decidir(doc, 'aprovado')}>
-                      <IoCheckmarkCircle className="mr-1" /> Aprovar
-                    </button>
-                  )}
-                  {doc.status !== 'rejected' && (
-                    <button className="btn-ghost btn-sm text-red-600" onClick={() => decidir(doc, 'rejeitado')}>
-                      <IoCloseCircle className="mr-1" /> Rejeitar
-                    </button>
-                  )}
-                </div>
-              </div>
-              {doc.status !== 'approved' && (
-                <input
-                  type="text"
-                  placeholder="Observação (opcional, ex: foto ilegível)"
-                  className="input mt-2 text-xs"
-                  value={observacoes[doc.id] || ''}
-                  onChange={(e) => setObservacoes((o) => ({ ...o, [doc.id]: e.target.value }))}
-                />
-              )}
-            </div>
-          );
-        })}
+    <div className="py-3 border-b border-slate-100 last:border-b-0">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-sm font-medium">{label}</div>
+          {doc ? <Detalhes doc={doc} /> : <div className="text-xs text-slate-400 mt-0.5">Não enviado</div>}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1">
+          {doc && (
+            <a
+              href={`/api/documents/${alunoId}/${doc.id}/download`}
+              target="_blank"
+              rel="noreferrer"
+              className="btn-ghost btn-sm"
+              title="Baixar/visualizar"
+            >
+              <IoDownloadOutline />
+            </a>
+          )}
+          {doc && doc.status !== 'approved' && (
+            <button className="btn-ghost btn-sm text-emerald-600" onClick={aprovar} disabled={busy}>
+              <IoCheckmarkCircle className="mr-1" /> Aprovar
+            </button>
+          )}
+          {doc && doc.status !== 'rejected' && (
+            <button className="btn-ghost btn-sm text-red-600" onClick={() => setModo('recusar')} disabled={busy}>
+              <IoCloseCircle className="mr-1" /> Recusar
+            </button>
+          )}
+          <button className="btn-ghost btn-sm" onClick={() => setModo('anexar')} disabled={busy}>
+            <IoAttachOutline className="mr-1" /> {doc ? 'Substituir' : 'Anexar'}
+          </button>
+        </div>
       </div>
-    </Modal>
+
+      {modo === 'recusar' && (
+        <form onSubmit={recusar} className="mt-3 p-3 bg-red-50/60 rounded-lg">
+          <label className="label">Motivo da recusa (o aluno verá esta mensagem)</label>
+          <input
+            className="input mb-2"
+            value={motivo}
+            onChange={(e) => setMotivo(e.target.value)}
+            placeholder="Ex.: foto ilegível, documento vencido"
+            maxLength={500}
+            autoFocus
+            required
+          />
+          <div className="flex gap-2">
+            <button className="btn-danger btn-sm" disabled={busy}>{busy ? 'Salvando…' : 'Confirmar recusa'}</button>
+            <button type="button" className="btn-ghost btn-sm" onClick={fechar}>Cancelar</button>
+          </div>
+        </form>
+      )}
+
+      {modo === 'anexar' && (
+        <form onSubmit={anexar} className="mt-3 p-3 bg-neutral-50 rounded-lg">
+          <label className="label">Arquivo (PDF, JPG ou PNG, até 5MB)</label>
+          <input
+            type="file"
+            accept=".pdf,.jpg,.jpeg,.png"
+            className="block text-sm mb-3"
+            onChange={(e) => setArquivo(e.target.files?.[0] || null)}
+            required
+          />
+          <label className="flex items-center gap-2 text-sm mb-3">
+            <input type="checkbox" checked={jaAprovar} onChange={(e) => setJaAprovar(e.target.checked)} />
+            Documento recebido na secretaria — já aprovar
+          </label>
+          {doc && <p className="text-xs text-slate-500 mb-3">O arquivo atual será substituído.</p>}
+          <div className="flex gap-2">
+            <button className="btn-primary btn-sm" disabled={busy}>{busy ? 'Enviando…' : 'Enviar'}</button>
+            <button type="button" className="btn-ghost btn-sm" onClick={fechar}>Cancelar</button>
+          </div>
+        </form>
+      )}
+    </div>
+  );
+}
+
+/** Status + quem enviou + quem analisou. */
+function Detalhes({ doc }: { doc: StudentDocument }) {
+  const envio =
+    doc.uploadedBy === 'admin'
+      ? `Anexado pela secretaria${doc.uploadedByAdminName ? ` (${doc.uploadedByAdminName})` : ''} em ${quando(doc.uploadedAt)}`
+      : `Enviado pelo aluno em ${quando(doc.uploadedAt)}`;
+  const analise =
+    doc.status !== 'pending' && doc.reviewedAt
+      ? `${doc.status === 'approved' ? 'Aprovado' : 'Recusado'} por ${doc.reviewedByAdminName || 'secretaria'} em ${quando(doc.reviewedAt)}`
+      : null;
+
+  return (
+    <div className="mt-0.5 space-y-0.5">
+      <StatusLine doc={doc} />
+      <div className="text-xs text-slate-500">{envio}</div>
+      {analise && <div className="text-xs text-slate-500">{analise}</div>}
+    </div>
   );
 }
 
@@ -214,7 +342,7 @@ function StatusLine({ doc }: { doc: StudentDocument }) {
   if (doc.status === 'rejected')
     return (
       <div className="text-xs text-red-600 flex items-center gap-1">
-        <IoCloseCircle /> Rejeitado{doc.note ? ` — ${doc.note}` : ''}
+        <IoCloseCircle /> Recusado{doc.note ? ` — ${doc.note}` : ''}
       </div>
     );
   return (
