@@ -8,10 +8,13 @@
   com validação no servidor; tela Diploma mostra as três etapas; o aluno não baixa; tela Certificados da secretaria
   (baixar PDF e marcar como emitido, com registro de quem emitiu); status "Concluído" automático com notas e documentos
   em dia (só sobe, nunca volta sozinho); situação do aluno no Dashboard.
+- 5.4 Identidade da escola: configuração central em `server/src/config/school.ts` (nome, razão social, deliberação,
+  endereço, telefones, logo); dados e logo nos PDFs (certificado, atestado, carnê), "Pelotas" nas datas; favicon,
+  título da aba e logo no login, no menu e no contrato, com o nome vindo do servidor (`GET /api/school`).
 
 ## Próximos pedidos
-- 5.4: cabeçalho dos PDFs com nome e logo da escola (configuração central). Hoje o certificado ainda mostra
-  "ESCOLA TÉCNICA UNITEC - JAGUARÃO" e o `server/assets/logo-unitec.png` foi apagado localmente (o PDF sai sem o logo do canto).
+- Preencher o CNPJ (e o CEP) em `server/src/config/school.ts` quando a empresa enviar. Vazios, não aparecem nos PDFs.
+- Manifesto para instalar o portal no celular (usaria `client/public/icon-192.png` e `icon-512.png`).
 - A confirmar: regra das notas. O CLAUDE.md diz "uma nota por prova (correção geral)", mas o sistema lança e confere
   nota por disciplina dentro de cada prova (5,0 em cada uma). Mantido assim no 5.3; mudar mexe no lançamento de notas.
 - Ideia: avisar o aluno por e-mail quando um documento for aprovado/recusado ou o certificado for emitido.
@@ -26,3 +29,8 @@
    (antes o próprio aluno baixava e isso contava como emitido):
    `SELECT tipo, status, COUNT(*) FROM solicitacoes_documentos GROUP BY tipo, status;`
 5. No Render: Pre-Deploy Command `npm --workspace server run db:deploy` e a variável `ADMIN_EMAIL`.
+
+Ensaio feito em 12/11/2026: a branch `dev` do Neon sumiu e foi recriada a partir da produção (endpoint novo
+`ep-curly-meadow-ac707j0u`). Nela, os passos 2 e 3 acima e o `migrate deploy` das 3 migrations novas funcionaram
+(0 documentos com `'pendente'`; banco idêntico ao `schema.prisma` no fim). Ao criar branches no Neon, conferir que
+a opção de expiração está desligada.

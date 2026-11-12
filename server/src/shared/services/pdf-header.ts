@@ -1,30 +1,37 @@
+import fs from 'fs';
+import path from 'path';
+import { SCHOOL, schoolAddressLine, schoolCnpjLine, schoolPhonesLine } from '@/config/school';
+
+const ASSETS = path.resolve(__dirname, '../../../assets');
+
+/**
+ * Cabeçalho do atestado: fundo branco, logo da escola à esquerda e contato à direita, com uma linha fina embaixo.
+ * (O logo tem fundo branco, por isso saiu a faixa escura.) O corpo do PDF começa na mesma altura de antes.
+ */
 export function renderPdfHeader(doc: PDFKit.PDFDocument) {
-  // Desenha o fundo escuro do cabeçalho
-  doc.rect(0, 0, doc.page.width, 70).fill('#0f172a');
-  
-  // Nome Principal (Alinhado à esquerda)
-  doc.fillColor('white')
-     .fontSize(16) // Reduzido levemente para caber o texto maior sem quebrar
-     .font('Helvetica-Bold')
-     .text('EJA ATITUDE', 40, 18);
+  const L = 40;
+  const R = doc.page.width - 40;
 
-  // Subtítulo Principal (Alinhado à esquerda)
-  doc.fontSize(10)
+  // Logo (se o arquivo faltar, escreve o nome da escola no lugar)
+  const logo = path.join(ASSETS, SCHOOL.logoPdf);
+  if (fs.existsSync(logo)) {
+    doc.image(logo, L, 12, { height: 46 });
+  } else {
+    doc.fillColor('#0f172a').font('Helvetica-Bold').fontSize(13).text(SCHOOL.name.toUpperCase(), L, 28, { lineBreak: false });
+  }
+
+  // Linha fina separando o cabeçalho do corpo
+  doc.moveTo(L, 66).lineTo(R, 66).lineWidth(0.6).strokeColor('#cbd5e1').stroke();
+
+  // Endereço, telefones e CNPJ (se houver), à direita e bem pequenos
+  const contato = [schoolAddressLine(), schoolPhonesLine(), schoolCnpjLine()].filter(Boolean).join('\n');
+  doc.fillColor('#334155')
+     .fontSize(8)
      .font('Helvetica')
-     .text('ENSINO MÉDIO EJA EAD 2026', 40, 42);
+     .text(contato, L, 18, { width: R - L, align: 'right', lineGap: 2 });
 
-  // Endereço e Contato (Alinhados à direita e bem pequenos)
-  // Definimos a largura (width) e subtraímos a margem para fixar o texto na direita
-  const larguraDisponivel = doc.page.width - 80; // 40 de margem esquerda + 40 de margem direita
-  
-  doc.fontSize(8) // Tamanho bem pequeno conforme solicitado
-     .font('Helvetica')
-     .text('Rua Uruguai, 458\nTelefone: (53) 3261-1007\nJaguarão - RS', 40, 18, {
-       width: larguraDisponivel,
-       align: 'right',
-       lineGap: 2
-     });
-
-  // Restaura a cor padrão para o corpo do texto do PDF e pula o espaço necessário
-  doc.fillColor('black').moveDown(4);
+  // Restaura as cores e posiciona o corpo na mesma altura de antes (não depende de quantas linhas de contato há)
+  doc.fillColor('black').strokeColor('black');
+  doc.x = L;
+  doc.y = 89;
 }

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import PageHeader from '../../components/PageHeader';
+import SchoolLogo from '../../components/SchoolLogo';
 import { api, br } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { useToast } from '../../lib/toast';
@@ -141,9 +142,7 @@ export default function Contrato({ gate = false }: Props) {
     return (
       <div className="min-h-screen bg-neutral-50 flex flex-col">
         <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
-          <div className="font-bold tracking-tight">
-            EJA <span className="text-indigo-600">· Plataforma</span>
-          </div>
+          <SchoolLogo className="h-10 w-auto" />
           <div className="text-sm text-slate-500 flex items-center gap-3">
             <span className="hidden sm:inline">
               Olá, <strong className="text-slate-900">{a.name.split(' ')[0]}</strong>

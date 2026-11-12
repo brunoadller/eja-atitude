@@ -1,14 +1,16 @@
 import { Invoice, Student } from '@prisma/client';
 import { Response } from 'express';
 import PDFDocument from 'pdfkit';
+import { SCHOOL, schoolAddressLine, schoolCnpjLine, schoolPhonesLine } from '@/config/school';
 import { MODULE_ROMAN, ModuleNumber } from '@/shared/constants/curriculum';
 import { NotFoundError } from '@/shared/errors/NotFoundError';
 import { fmtDate, fmtMoney } from '@/shared/utils/dates';
 import { InvoicesRepository } from './invoices.repository';
 
 const VIAS = ['1ª via — Aluno', '2ª via — Auditoria', '3ª via — Caixa'];
-const SCHOOL = 'ATITUDE LTDA';
-const ADDRESS = 'Rua Uruguai, 458 · Fone (53) 3261-1007';
+// Beneficiário do carnê: razão social; abaixo, nome da escola, endereço, telefones e CNPJ (se houver). Fonte: config/school.ts
+const BENEFICIARY = SCHOOL.legalName.toUpperCase();
+const ADDRESS = [SCHOOL.name, schoolAddressLine(), `Fone ${schoolPhonesLine()}`, schoolCnpjLine()].filter(Boolean).join(' · ');
 const NAVY = '#0f172a';
 const GRAY = '#6b7280';
 
@@ -23,7 +25,7 @@ function drawSlip(doc: PDFKit.PDFDocument, y0: number, via: string, inv: Invoice
   const L = 40;
   const R = doc.page.width - 40;
 
-  doc.fillColor(NAVY).font('Helvetica-Bold').fontSize(16).text(SCHOOL, L, y0, { lineBreak: false });
+  doc.fillColor(NAVY).font('Helvetica-Bold').fontSize(16).text(BENEFICIARY, L, y0, { lineBreak: false });
   doc.fillColor(GRAY).font('Helvetica').fontSize(8).text(ADDRESS, L, y0 + 22, { lineBreak: false });
   doc.fillColor(NAVY).font('Helvetica-Bold').fontSize(9).text(via, L, y0 + 4, { width: R - L, align: 'right', lineBreak: false });
 
@@ -62,7 +64,7 @@ function drawSlip(doc: PDFKit.PDFDocument, y0: number, via: string, inv: Invoice
   doc.fillColor(GRAY).font('Helvetica').fontSize(7)
     .text(
       'Após o vencimento: multa de 2% + juros de 1% a.m. Atraso superior a 30 dias: inclusão no CPC. ' +
-        'Pagamento somente na secretaria — Rua Uruguai, 458, fone (53) 3261-1007.',
+        `Pagamento somente na secretaria — ${SCHOOL.address}, ${SCHOOL.city}/${SCHOOL.state}, fone ${schoolPhonesLine()}.`,
       L, y0 + 139, { width: R - L },
     );
 }

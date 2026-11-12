@@ -2,6 +2,7 @@ import { IoLogOut } from "react-icons/io5";
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { initials } from '../lib/api';
+import { SCHOOL_ICON, SCHOOL_LOGO, useSchool } from '../lib/school';
 import { ReactNode } from "react";
 
 export interface NavItem {
@@ -13,14 +14,13 @@ export interface NavItem {
 
 export default function Sidebar({ items, role }: { items: NavItem[]; role: 'admin' | 'aluno' }) {
   const { me, logout } = useAuth();
+  const school = useSchool();
   const nome = (me?.user as any)?.name || (me?.user as any)?.user || 'Usuário';
 
   return (
     <aside className="w-60 shrink-0 bg-white border-r border-slate-200 flex flex-col sticky top-0 h-screen px-4 py-6 lg:flex hidden">
       <div className="px-2 pb-5 border-b border-slate-200 mb-4">
-        <div className="text-lg font-bold tracking-tight">
-          EJA <span className="text-indigo-600">· ATITUDE</span>
-        </div>
+        <img src={SCHOOL_LOGO} alt={school?.name ?? 'Logo da escola'} className="h-12 w-auto" />
       </div>
 
       <nav className="flex-1 flex flex-col gap-0.5">
@@ -60,9 +60,10 @@ export default function Sidebar({ items, role }: { items: NavItem[]; role: 'admi
 }
 
 export function MobileNav({ items }: { items: NavItem[] }) {
+  const school = useSchool();
   return (
     <div className="lg:hidden bg-white border-b border-slate-200 overflow-x-auto flex px-3 py-2 gap-2 sticky top-0 z-40">
-      <div className="font-bold text-sm px-2 shrink-0 self-center">EJA</div>
+      <img src={SCHOOL_ICON} alt={school?.name ?? 'Logo da escola'} className="h-7 w-7 shrink-0 self-center" />
       {items.map((it) => (
         <NavLink
           key={it.to}
