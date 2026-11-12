@@ -1,9 +1,11 @@
 import { FormEvent, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
+import { SCHOOL_LOGO, useSchool } from '../lib/school';
 
 export default function Login() {
   const { login } = useAuth();
+  const school = useSchool();
   const [tipo, setTipo] = useState<'student' | 'admin'>('student');
   const [usuario, setUsuario] = useState('');
   const [senha, setSenha] = useState('');
@@ -28,8 +30,9 @@ export default function Login() {
       {/* HERO */}
       <div className="hidden lg:flex flex-col justify-between p-16 bg-gradient-to-br from-slate-900 to-slate-800 text-white relative overflow-hidden">
         <div className="absolute -top-40 -right-40 w-[600px] h-[600px] rounded-full bg-indigo-500/30 blur-3xl" />
-        <div className="relative text-xl font-bold tracking-tight">
-          EJA <span className="text-indigo-300">· ATITUDE</span>
+        {/* logo tem letras escuras: fica numa caixa branca para aparecer no fundo escuro */}
+        <div className="relative self-start bg-white rounded-xl px-4 py-2 shadow-sm">
+          <img src={SCHOOL_LOGO} alt={school?.name ?? 'Logo da escola'} className="h-14 w-auto" />
         </div>
         <div className="relative">
           <h1 className="text-5xl font-bold tracking-tight leading-[1.05] mb-5">
@@ -46,7 +49,9 @@ export default function Login() {
             <Feat icon="🎓" text="Certificado ao concluir o curso" />
           </div>
         </div>
-        <div className="relative text-xs text-slate-400">© 2026 EJA ATITUDE LTDA · Todos os direitos reservados</div>
+        <div className="relative text-xs text-slate-400">
+          © {new Date().getFullYear()}{school ? ` ${school.legalName}` : ''} · Todos os direitos reservados
+        </div>
       </div>
 
       {/* FORM */}
