@@ -1,4 +1,5 @@
 import { prisma } from '@/config/database';
+import { logger } from '@/config/logger';
 import { classGroupFor, ModuleNumber } from '@/shared/constants/curriculum';
 import { DOCUMENT_TYPE_LABELS, REQUIRED_DOCUMENT_TYPES } from '@/shared/constants/document-types';
 import { PASSING_SCORE } from '@/shared/constants/fees';
@@ -126,6 +127,24 @@ export async function evaluateCompletion(studentId: string): Promise<Completion>
   }
 
   return { eligible: reasons.length === 0, reasons, checks, required, matrix };
+}
+
+/**
+ * "Concluído" automático: com NOTAS e DOCUMENTOS em dia, o aluno Ativo vira Concluído.
+ * (As parcelas não contam aqui: elas só bloqueiam a solicitação do certificado.)
+ *  - só sobe: nunca volta para Ativo sozinho (a secretaria ajusta no cadastro, se precisar);
+ *  - não mexe em Trancado nem em Aguardando contrato;
+ *  - nunca faz a ação principal falhar (lançar nota, aprovar documento): erro só vai para o log.
+ */
+export async function syncCompletedStatus(studentId: string, completion?: Completion): Promise<void> {
+  try {
+    const c = completion ?? (await evaluateCompletion(studentId));
+    if (!c.checks.grades.ok || !c.checks.documents.ok) return;
+    // o "where status: active" garante que só Ativo muda (atômico, sem ler antes)
+    await prisma.student.updateMany({ where: { id: studentId, status: 'active' }, data: { status: 'completed' } });
+  } catch (err) {
+    logger.error({ err: (err as Error).message, studentId }, 'falha ao atualizar o aluno para concluído');
+  }
 }
 
 /** Mensagem de erro em português dizendo qual condição falta (usada quando o servidor recusa o certificado). */

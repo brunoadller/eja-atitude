@@ -8,6 +8,7 @@ import { ValidationError } from '@/shared/errors/ValidationError';
 import { Session } from '@/shared/types/session';
 import { endOfMonthUTC, fmtDate } from '@/shared/utils/dates';
 import { ScheduleService } from '@/modules/schedule/schedule.service';
+import { syncCompletedStatus } from './completion.service';
 import { GradesRepository } from './grades.repository';
 
 /** Regra das orientações: para realizar provas o aluno precisa estar em dia com a mensalidade do mês corrente. */
@@ -43,7 +44,7 @@ export const GradesService = {
     }
     await assertUpToDateForExams(studentId);
 
-    return GradesRepository.create({
+    const created = await GradesRepository.create({
       subject,
       componentModule,
       examNumber,
@@ -52,6 +53,8 @@ export const GradesService = {
       year: (student.enrollmentDate ?? new Date()).getUTCFullYear(),
       student: { connect: { id: studentId } },
     });
+    await syncCompletedStatus(studentId); // notas + documentos em dia → Concluído
+    return created;
   },
 
   /** Agenda a recuperação; da 2ª recuperação em diante gera a taxa (R$ 30) como boleto avulso. */
@@ -93,7 +96,9 @@ export const GradesService = {
     const grade = await GradesRepository.findById(gradeId);
     if (!grade) throw new NotFoundError('lançamento não encontrado');
     if (grade.attempt < 2) throw new ValidationError('use "lançar prova" para a prova regular');
-    return GradesRepository.updateScore(gradeId, score);
+    const updated = await GradesRepository.updateScore(gradeId, score);
+    await syncCompletedStatus(grade.studentId); // notas + documentos em dia → Concluído
+    return updated;
   },
 
   remove: (id: string) => GradesRepository.remove(id),

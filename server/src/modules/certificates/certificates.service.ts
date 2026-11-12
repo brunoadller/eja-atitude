@@ -5,7 +5,7 @@ import { ConflictError } from '@/shared/errors/ConflictError';
 import { ForbiddenError } from '@/shared/errors/ForbiddenError';
 import { NotFoundError } from '@/shared/errors/NotFoundError';
 import { Session } from '@/shared/types/session';
-import { completionBlockMessage, evaluateCompletion } from '@/modules/grades/completion.service';
+import { completionBlockMessage, evaluateCompletion, syncCompletedStatus } from '@/modules/grades/completion.service';
 import { renderAttestationPdf, renderCertificatePdf } from './certificates.pdf';
 
 async function loadStudent(id: string) {
@@ -21,6 +21,8 @@ export const CertificatesService = {
       prisma.documentRequest.findMany({ where: { studentId }, include: { invoice: true }, orderBy: { via: 'asc' } }),
       evaluateCompletion(studentId),
     ]);
+    // ao abrir Secretaria → Diploma: pega também quem já cumpria notas + documentos antes desta regra existir
+    await syncCompletedStatus(studentId, completion);
 
     const build = (type: FeeDocType) => {
       const list = requests.filter((r) => r.type === type);
