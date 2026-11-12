@@ -6,6 +6,7 @@ import AdminLayout from './pages/admin/AdminLayout';
 import AdminAlunos from './pages/admin/Alunos';
 import AdminApostilas from './pages/admin/Apostilas';
 import AdminBoletos from './pages/admin/Boletos';
+import AdminCertificados from './pages/admin/Certificados';
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminDocumentos from './pages/admin/Documentos';
 import AdminMinhaConta from './pages/admin/MinhaConta';
@@ -56,6 +57,7 @@ export default function App() {
           <Route path="boletos" element={<AdminBoletos />} />
           <Route path="apostilas" element={<AdminApostilas />} />
           <Route path="documentos" element={<AdminDocumentos />} />
+          <Route path="certificados" element={<AdminCertificados />} />
           <Route path="cronograma" element={<AdminCronograma />} />
           <Route path="minha-conta" element={<AdminMinhaConta />} />
           <Route path="*" element={<Navigate to="/" replace />} />
