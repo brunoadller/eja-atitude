@@ -3,10 +3,9 @@
 ## Feito
 - Senha da secretaria: troca estando logada, "esqueci a senha" por código no e-mail e tela "Minha conta" (na `dev`).
 - `.gitattributes`: migrations do Prisma sempre com quebra de linha LF.
-- Documentos dos alunos, passo 1: colunas de quem anexou e quem analisou; status padrão `pending` (branch `feature/documentos-secretaria`).
+- Documentos dos alunos: status pendente/aprovado/recusado, motivo da recusa, anexo pela secretaria (com "já aprovar"), registro de quem anexou e quem analisou.
 
 ## Próximos pedidos
-- Documentos dos alunos, passos 2 a 4: servidor, tela da secretaria e tela do aluno.
 - 5.3: lista de documentos obrigatórios e o certificado passar a exigir que todos estejam aprovados.
   Hoje o `server/src/modules/grades/completion.service.ts` só confere notas e parcelas, e o CLAUDE.md exige também a documentação aprovada.
 
