@@ -5,6 +5,7 @@ import path from 'path';
 import PDFDocument from 'pdfkit';
 import { getPeriod } from '@/shared/constants/academic-calendar';
 import { MODULE_ROMAN, ModuleNumber, TRANSCRIPT_ROWS } from '@/shared/constants/curriculum';
+import { SCHOOL, schoolCnpjLine, schoolPhonesLine } from '@/config/school';
 import { renderPdfHeader } from '@/shared/services/pdf-header';
 import { fmtDate } from '@/shared/utils/dates';
 import { Completion } from '@/modules/grades/completion.service';
@@ -27,7 +28,7 @@ export function renderAttestationPdf(student: Student, via: number, res: Respons
 
   // formata a data de rodapé
   const dateFormated = new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date());
-  const textDateFooter = `Jaguarão, ${dateFormated}`;
+  const textDateFooter = `${SCHOOL.city}, ${dateFormated}`;
   // formata a data de matrícula
   const enrollmentDateFormated = student.enrollmentDate
     ? new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo' }).format(new Date(student.enrollmentDate))
@@ -76,11 +77,16 @@ export function renderCertificatePdf(student: Student, completion: Completion, v
   if (fs.existsSync(brasao)) doc.image(brasao, L + 12, 24, { height: 64 });
   if (fs.existsSync(logo)) doc.image(logo, W - L - 118, 34, { width: 108 });
 
-  doc.fillColor('#000').font('Times-Bold').fontSize(12).text('ESCOLA TÉCNICA UNITEC - JAGUARÃO', 0, 28, { width: W, align: 'center', lineBreak: false });
+  // dados da escola vêm de config/school.ts (mesmas posições e fontes de antes)
+  const cnpj = schoolCnpjLine();
+  doc.fillColor('#000').font('Times-Bold').fontSize(12).text(SCHOOL.name.toUpperCase(), 0, 28, { width: W, align: 'center', lineBreak: false });
   doc.font('Times-Roman').fontSize(9.5);
-  doc.text('ENTIDADE MANTENEDORA: CENTRO EDUCACIONAL UNITEC S/S LTDA', 0, 44, { width: W, align: 'center', lineBreak: false });
-  doc.text('DELIBERAÇÃO Nº 692/2022', 0, 58, { width: W, align: 'center', lineBreak: false });
-  doc.text('Rua Uruguai, 458  Jaguarão/RS - Fone: 053-3261-1007 CEP: 96300000', 0, 72, { width: W, align: 'center', lineBreak: false });
+  doc.text(`ENTIDADE MANTENEDORA: ${SCHOOL.legalName.toUpperCase()}${cnpj ? ` - ${cnpj}` : ''}`, 0, 44, { width: W, align: 'center', lineBreak: false });
+  doc.text(SCHOOL.deliberation.toUpperCase(), 0, 58, { width: W, align: 'center', lineBreak: false });
+  doc.text(
+    `${SCHOOL.address}  ${SCHOOL.city}/${SCHOOL.state} - Fone: ${schoolPhonesLine()}${SCHOOL.zipCode ? ` CEP: ${SCHOOL.zipCode}` : ''}`,
+    0, 72, { width: W, align: 'center', lineBreak: false },
+  );
 
   doc.rect(L, 96, CW, 17).fillAndStroke('#d9e6f3', '#8da2b8');
   doc.fillColor('#000').font('Helvetica-Bold').fontSize(10).text('CERTIFICADO DE CONCLUSÃO', L, 101, { width: CW, align: 'center', lineBreak: false });
@@ -101,7 +107,7 @@ export function renderCertificatePdf(student: Student, completion: Completion, v
   roundedBox(doc, L, 168, CW, 34, 1);
   doc.font('Helvetica').fontSize(9).text(
     `Certificamos que ${upper(student.name)}, concluiu o Ensino Médio na modalidade de Educação de Jovens e Adultos na forma de Ensino a Distância no ano de ${year}, ` +
-      'nos termos da Lei Federal 9394/96 e Deliberação nº 692/2022, com base no Regimento Escolar, tendo obtido os resultados constantes neste histórico.',
+      `nos termos da Lei Federal 9394/96 e ${SCHOOL.deliberation}, com base no Regimento Escolar, tendo obtido os resultados constantes neste histórico.`,
     L + 6, 173, { width: CW - 12, align: 'justify' },
   );
 
@@ -133,7 +139,7 @@ export function renderCertificatePdf(student: Student, completion: Completion, v
     'LEGENDA:  PL = Período Letivo;  M = Módulo do componente curricular;  # ( sustenido ) = Aproveitamento de estudos.  - ( traço ) Espaço anulado.',
     L + 6, y + 11, { lineBreak: false },
   );
-  doc.fontSize(9).text(`Jaguarão, ${today}`, L, 560, { lineBreak: false });
+  doc.fontSize(9).text(`${SCHOOL.city}, ${today}`, L, 560, { lineBreak: false });
   if (via > 1) doc.fontSize(8).fillColor('#555').text(viaLabel(via), 0, 560, { width: W - L, align: 'right', lineBreak: false });
 
   // ── Página 2: aproveitamento de estudos / observações ──
@@ -191,7 +197,7 @@ export function renderCertificatePdf(student: Student, completion: Completion, v
   doc.fontSize(9).text('Secretário(a)', 150, 509, { width: 160, align: 'center', lineBreak: false });
   doc.text('Diretor(a)', 350, 509, { width: 190, align: 'center', lineBreak: false });
   doc.text('Registro no Livro________, fl. ____', 580, 495, { lineBreak: false });
-  doc.fontSize(9).text(`Jaguarão, ${today}`, L, 560, { lineBreak: false });
+  doc.fontSize(9).text(`${SCHOOL.city}, ${today}`, L, 560, { lineBreak: false });
 
   doc.end();
 }
