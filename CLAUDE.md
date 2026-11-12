@@ -47,9 +47,10 @@ Não reescreva o projeto inteiro; faça alterações pontuais e mostre o diff.
 ## Variáveis de ambiente (`server/.env`, modelo em `.env.example`)
 
 `DATABASE_URL`, `PORT`, `NODE_ENV`, `JWT_SECRET` (32+ caracteres, obrigatório), `JWT_EXPIRES_IN`,
-`ADMIN_USERNAME`, `ADMIN_PASSWORD`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`.
+`ADMIN_USERNAME`, `ADMIN_PASSWORD`, `ADMIN_EMAIL` (opcional), `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM`.
 Sem SMTP e fora de produção, o código de recuperação de senha aparece no terminal como `[MAIL-DEV]`.
 O seed cria o admin só se não existir; não redefine senha de admin existente.
+Se o admin já existe e está sem e-mail, o seed preenche com `ADMIN_EMAIL`.
 
 ## Regras de negócio
 
