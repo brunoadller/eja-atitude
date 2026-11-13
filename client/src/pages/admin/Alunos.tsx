@@ -68,7 +68,14 @@ export default function AdminAlunos() {
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1.5">
                         <button className="btn-secondary btn-sm" onClick={() => { setEditing(a); setShowForm(true); }}>Editar</button>
-                        <button className="btn-secondary btn-sm" onClick={() => act(() => openPdf(`certificates/enrollment/${a.id}`))}>Atestado</button>
+                        <button
+                          className="btn-secondary btn-sm"
+                          disabled={a.status !== 'active'}
+                          title={a.status === 'active' ? undefined : a.status === 'completed' ? 'Curso concluído: emita o certificado' : 'Atestado só para aluno ativo'}
+                          onClick={() => act(() => openPdf(`certificates/enrollment/${a.id}`))}
+                        >
+                          Atestado
+                        </button>
                         <button className="btn-secondary btn-sm" onClick={() => act(() => openPdf(`invoices/student/${a.id}/carne`))}>Carnê</button>
                         {a.moduleNumber === 1 && (
                           <button className="btn-secondary btn-sm" onClick={() => setAdvancing(a)}>Ativar módulo 2</button>

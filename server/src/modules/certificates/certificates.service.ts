@@ -16,6 +16,22 @@ async function loadStudent(id: string) {
   return s;
 }
 
+/**
+ * Atestado de matrícula só existe para aluno ATIVO. Concluído recebe o certificado (pedido à secretaria);
+ * pendente ainda não aceitou o contrato; trancado não está matriculado. Retorna null quando pode gerar.
+ */
+function attestationBlockReason(status: string): string | null {
+  if (status === 'active') return null;
+  if (status === 'completed') return 'curso concluído: o atestado de matrícula não está mais disponível. Solicite o certificado à secretaria.';
+  if (status === 'pending') return 'aceite o contrato para liberar o atestado de matrícula';
+  return 'matrícula trancada: o atestado de matrícula não está disponível';
+}
+
+function assertCanGenerateAttestation(status: string) {
+  const reason = attestationBlockReason(status);
+  if (reason) throw new ForbiddenError(reason);
+}
+
 type RequestStatus = 'awaiting_payment' | 'ready' | 'issued';
 
 /**
@@ -41,19 +57,22 @@ export const CertificatesService = {
     ]);
     // ao abrir Secretaria → Diploma: pega também quem já cumpria notas + documentos antes desta regra existir
     await syncCompletedStatus(studentId, completion);
+    // lido DEPOIS do sync: se o aluno acabou de virar "concluído", o atestado já aparece bloqueado
+    const { status: studentStatus } = await loadStudent(studentId);
+    const attestationBlock = attestationBlockReason(studentStatus);
 
     const build = (type: FeeDocType) => {
       const list = requests.filter((r) => r.type === type);
       const pending = list.find((r) => isOpen(type, r.status));
       const nextVia = list.length + 1;
-      const eligible = type === 'certificate' ? completion.eligible : true;
+      const eligible = type === 'certificate' ? completion.eligible : !attestationBlock;
       return {
         type,
         label: DOC_LABEL[type],
         nextVia,
         fee: feeForVia(type, nextVia),
         eligible,
-        reasons: type === 'certificate' ? completion.reasons : [],
+        reasons: type === 'certificate' ? completion.reasons : attestationBlock ? [attestationBlock] : [],
         // só para o certificado: as três condições separadas (notas, parcelas, documentos) para a tela mostrar cada etapa
         checks: type === 'certificate' ? completion.checks : null,
         canRequest: eligible && !pending,
@@ -79,6 +98,8 @@ export const CertificatesService = {
       const c = await evaluateCompletion(studentId);
       // validação no servidor: as três condições ao mesmo tempo (não confia só na tela)
       if (!c.eligible) throw new ForbiddenError(completionBlockMessage(c));
+    } else {
+      assertCanGenerateAttestation((await loadStudent(studentId)).status);
     }
     return prisma.$transaction(async (tx) => {
       const existing = await tx.documentRequest.findMany({ where: { studentId, type } });
@@ -125,13 +146,17 @@ export const CertificatesService = {
     if (req.status === 'awaiting_payment') throw new ForbiddenError('pague a taxa na secretaria para liberar este documento');
 
     const student = await loadStudent(req.studentId);
+    // via liberada antes da conclusão também deixa de sair depois que o aluno conclui
+    assertCanGenerateAttestation(student.status);
     if (req.status === 'ready') await prisma.documentRequest.update({ where: { id: req.id }, data: { status: 'issued', issuedAt: new Date() } });
     return renderAttestationPdf(student, req.via, res);
   },
 
   // ── secretaria (impressão direta; a cobrança é feita no balcão) ──
   async adminAttestation(studentId: string, res: Response) {
-    renderAttestationPdf(await loadStudent(studentId), 1, res);
+    const student = await loadStudent(studentId);
+    assertCanGenerateAttestation(student.status);
+    renderAttestationPdf(student, 1, res);
   },
   /** Prévia do certificado pela secretaria. Sem "force": as três condições valem sempre. */
   async adminCertificate(studentId: string, res: Response) {

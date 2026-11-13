@@ -78,7 +78,7 @@ export default function DocumentRequestCard({ type, icon, intro, footer }: { typ
               <div className="text-slate-500 flex-1">
                 {r.feeAmount > 0 ? `Taxa ${money(r.feeAmount)}${r.invoice ? ` · venc. ${br(r.invoice.dueDate)}` : ''}` : 'Sem taxa'}
               </div>
-              {r.status !== 'awaiting_payment' && <button className="btn-secondary btn-sm" onClick={() => download(r.id, r.via)}>Baixar PDF</button>}
+              {r.status !== 'awaiting_payment' && (type !== 'attestation' || st.eligible) && <button className="btn-secondary btn-sm" onClick={() => download(r.id, r.via)}>Baixar PDF</button>}
             </div>
           ))}
         </div>
