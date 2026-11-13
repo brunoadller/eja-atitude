@@ -6,6 +6,6 @@ export function toStudentResponse(student: Student) {
   return safe;
 }
 
-export function toStudentListResponse(students: Student[]) {
-  return students.map(toStudentResponse);
+export function toStudentListResponse(page: { items: Student[]; total: number; page: number; pageSize: number }) {
+  return { ...page, items: page.items.map(toStudentResponse) };
 }

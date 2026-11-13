@@ -32,9 +32,14 @@ export const validate =
     try {
       const parsed = schema.parse({ body: req.body, query: req.query, params: req.params }) as {
         body?: unknown;
+        query?: unknown;
       };
       if (parsed && typeof parsed === 'object' && 'body' in parsed && parsed.body !== undefined) {
         req.body = parsed.body;
+      }
+      // req.query é somente leitura: o resultado já validado (com números/datas convertidos) vai em res.locals.query
+      if (parsed && typeof parsed === 'object' && 'query' in parsed && parsed.query !== undefined) {
+        res.locals.query = parsed.query;
       }
       next();
     } catch (err) {

@@ -4,7 +4,10 @@ import { StudentsService } from './students.service';
 
 export const StudentsController = {
   async list(_req: Request, res: Response, next: NextFunction) {
-    try { res.json(toStudentListResponse(await StudentsService.list())); } catch (err) { next(err); }
+    try { res.json(toStudentListResponse(await StudentsService.list(res.locals.query))); } catch (err) { next(err); }
+  },
+  async summary(_req: Request, res: Response, next: NextFunction) {
+    try { res.json(await StudentsService.summary()); } catch (err) { next(err); }
   },
   async getById(req: Request, res: Response, next: NextFunction) {
     try { res.json(toStudentResponse(await StudentsService.getById(req.params.id, req.session!))); } catch (err) { next(err); }

@@ -71,7 +71,23 @@ export const updateStudentSchema = z.object({
     .partial(),
 });
 
-export const advanceModuleSchema = z.object({
+/** Filtros e paginação da lista de alunos (querystring). Parâmetros vazios nem são enviados pelo front. */
+export const listStudentsSchema = z.object({
+  query: z.object({
+    search: z.string().trim().max(100).optional(),
+    status: z.enum(['pending', 'active', 'completed', 'locked']).optional(),
+    moduleNumber: z.coerce.number().int().min(1).max(2).optional(),
+    classGroup: z.string().trim().max(50).optional(),
+    enrolledFrom: z.coerce.date().optional(),
+    enrolledTo: z.coerce.date().optional(),
+    page: z.coerce.number().int().min(1).default(1),
+    pageSize: z.coerce.number().int().min(1).max(100).default(20),
+  }),
+});
+
+export type ListStudentsQuery = z.infer<typeof listStudentsSchema>['query'];
+
+export const advanceModuleSchema =z.object({
   body: z.strictObject({
     monthlyFee: z.number().positive('Valor da parcela inválido').max(100000),
     installments: z.number().int().min(1).max(24),

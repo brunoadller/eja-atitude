@@ -13,6 +13,7 @@ import { buildInstallments } from '@/modules/invoices/installments';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 import { StudentsRepository } from './students.repository';
+import type { ListStudentsQuery } from './students.schema';
 
 function isUniqueViolation(err: unknown, field: string): boolean {
   return (
@@ -23,7 +24,8 @@ function isUniqueViolation(err: unknown, field: string): boolean {
 }
 
 export const StudentsService = {
-  list: () => StudentsRepository.findAll(),
+  list: (query: ListStudentsQuery) => StudentsRepository.search(query),
+  summary: () => StudentsRepository.summary(),
 
   /** Aluno só enxerga a própria ficha; a secretaria enxerga todas. */
   async getById(id: string, session: Session) {
