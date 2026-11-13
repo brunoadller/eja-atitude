@@ -87,6 +87,16 @@ Se o admin já existe e está sem e-mail, o seed preenche com `ADMIN_EMAIL`.
 - Guardar quem anexou, quem aprovou e quando.
 - O aluno só vê os próprios documentos; rotas da secretaria exigem perfil de administrador.
 
+### Notificações
+
+- Aluno é avisado quando a secretaria aprova (também ao anexar já aprovado) ou recusa um documento; na recusa, o aviso traz o motivo.
+- Secretaria é avisada quando um aluno solicita o certificado: **uma notificação por administrador** (os que existem no momento). O aviso leva a Certificados.
+- Tabela `notificacoes`: destinatário é um aluno **ou** um admin (CHECK no banco). Não lida = `lida_em` vazio.
+- O destinatário vem **sempre da sessão**, nunca do corpo ou da URL. Rotas `/api/notifications` (mesmas para os dois perfis); notificação de outra pessoa responde 404.
+- Falha ao criar aviso de documento não desfaz a aprovação/recusa (vai para o log). O aviso de certificado nasce na mesma transação da solicitação.
+- Tela: sino com contador no menu e página `/notificacoes`. Atualiza ao carregar, a cada 60 s só com a aba visível e ao voltar para a aba.
+- Código: `server/src/modules/notifications`, `client/src/lib/notifications.tsx`, `client/src/components/NotificationBell.tsx`, `client/src/pages/Notifications.tsx`.
+
 ### Identidade da escola (cabeçalho dos PDFs)
 
 - Nome: Escola de Ensino Médio Atitude Pelotas. Razão social: Centro de Aprendizagem Atitude LTDA.
