@@ -70,7 +70,12 @@ export default function AdminCertificados() {
   }
 
   async function emitir(r: CertificateRequest) {
-    if (!(await confirm(`Confirmar que o certificado (${r.via}ª via) de ${r.student.name} foi impresso, assinado e carimbado?`))) return;
+    const ok = await confirm({
+      title: 'Marcar certificado como emitido',
+      message: `Confirmar que o certificado (${r.via}ª via) de ${r.student.name} foi impresso, assinado e carimbado?`,
+      confirmLabel: 'Marcar como emitido',
+    });
+    if (!ok) return;
     setBusy(r.id);
     try {
       await api(`certificates/requests/${r.id}/issue`, { method: 'PUT' });

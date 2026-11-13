@@ -42,7 +42,12 @@ export default function AdminBoletos() {
     try { await api(`invoices/${id}/pay`, { method: 'POST' }); toast('Marcado como pago', 'success'); loadInvoices(); } catch (e) { fail(e); }
   }
   async function reabrir(id: string) {
-    if (!(await confirm('Reabrir este boleto (desfazer o pagamento)?'))) return;
+    const ok = await confirm({
+      title: 'Reabrir boleto',
+      message: 'Reabrir este boleto (desfazer o pagamento)?',
+      confirmLabel: 'Reabrir boleto',
+    });
+    if (!ok) return;
     try { await api(`invoices/${id}/reopen`, { method: 'POST' }); loadInvoices(); } catch (e) { fail(e); }
   }
 
