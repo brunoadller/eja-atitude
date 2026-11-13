@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from './lib/auth';
 import ForgotPassword from './pages/ForgotPassword';
 import Login from './pages/Login';
+import Notifications from './pages/Notifications';
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminAlunos from './pages/admin/Alunos';
 import AdminApostilas from './pages/admin/Apostilas';
@@ -60,6 +61,7 @@ export default function App() {
           <Route path="certificados" element={<AdminCertificados />} />
           <Route path="cronograma" element={<AdminCronograma />} />
           <Route path="minha-conta" element={<AdminMinhaConta />} />
+          <Route path="notificacoes" element={<Notifications />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
@@ -86,6 +88,7 @@ export default function App() {
           <Route path="documentos" element={<DocumentosMatricula />} />
         </Route>
         <Route path="contrato" element={<Contrato />} />
+        <Route path="notificacoes" element={<Notifications />} />
         <Route path="*" element={<Navigate to="/" replace />} />
         
 
