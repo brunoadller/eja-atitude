@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import {
   IoAttachOutline, IoCheckmarkCircle, IoCloseCircle, IoDownloadOutline, IoTimeOutline,
 } from 'react-icons/io5';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { useToast } from '../../lib/toast';
 import type { DocumentTypeInfo, Student, StudentDocument } from '../../types';
@@ -20,6 +21,17 @@ export default function AdminDocumentos() {
   const [contagens, setContagens] = useState<Record<string, number>>({});
   const [busca, setBusca] = useState('');
   const [alunoSelecionado, setAlunoSelecionado] = useState<Student | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Vindo de uma notificação (/documentos?aluno=<id>): abre a revisão daquele aluno e limpa o endereço,
+  // para não reabrir ao fechar o modal ou recarregar a página.
+  useEffect(() => {
+    const id = searchParams.get('aluno');
+    if (!id || alunos.length === 0) return;
+    const aluno = alunos.find((a) => a.id === id);
+    if (aluno) setAlunoSelecionado(aluno);
+    setSearchParams({}, { replace: true });
+  }, [searchParams, alunos, setSearchParams]);
 
   useEffect(() => {
     api<Student[]>('/students').then(async (lista) => {
