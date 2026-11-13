@@ -1,27 +1,24 @@
-import { useEffect, useState } from 'react';
-import { api, br } from '../../lib/api';
-import type { Student} from '../../types';
+import { br } from '../../lib/api';
+import { EMPTY_FILTERS, useStudentList, useStudentsSummary } from '../../lib/students';
 import PageHeader, { StatCard, StatusPill } from '../../components/PageHeader';
 
 export default function AdminDashboard() {
-  const [alunos, setAlunos] = useState<Student[]>([]);
-
-  useEffect(() => {
-    api<Student[]>('students').then(setAlunos).catch(() => {});
-  }, []);
-
-  const ativos = alunos.filter((a) => a.status === 'active').length;
-  const concluidos = alunos.filter((a) => a.status === 'completed').length;
+  // só os 6 últimos cadastros + os totais (nada de baixar todos os alunos)
+  const { items: alunos } = useStudentList(EMPTY_FILTERS, 1, 6);
+  const summary = useStudentsSummary();
+  const count = (status: string) => summary?.byStatus[status] ?? 0;
+  const ativos = count('active');
+  const concluidos = count('completed');
 
   return (
     <>
       <PageHeader title="Dashboard" subtitle="Visão geral da plataforma" />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard label="Alunos cadastrados" value={alunos.length} hint="Total" />
+        <StatCard label="Alunos cadastrados" value={summary?.total ?? 0} hint="Total" />
         <StatCard label="Ativos" value={ativos} hint="Matriculados" />
         <StatCard label="Concluídos" value={concluidos} hint="Prontos p/ certificado" />
-        <StatCard label="Aguardando contrato" value={alunos.filter((a) => a.status === 'pending').length} hint="Ainda não ativos" />
+        <StatCard label="Aguardando contrato" value={count('pending')} hint="Ainda não ativos" />
       </div>
 
       <div className="card">
@@ -40,7 +37,7 @@ export default function AdminDashboard() {
               </tr>
             </thead>
             <tbody>
-              {alunos.slice(0, 6).map((a) => (
+              {alunos.map((a) => (
                 <tr key={a.id} className="border-t border-slate-100 hover:bg-neutral-50">
                   <td className="px-4 py-3">
                     <code className="text-xs bg-neutral-100 px-2 py-0.5 rounded">{a.enrollment}</code>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import PageHeader, { Empty } from '../../components/PageHeader';
+import StudentPicker from '../../components/StudentPicker';
 import { api, br } from '../../lib/api';
 import { useToast } from '../../lib/toast';
 import { useConfirm } from '../../lib/confirm';
@@ -10,8 +11,8 @@ const yearOf = (s: Student) => new Date(s.enrollmentDate || Date.now()).getUTCFu
 export default function AdminNotas() {
   const toast = useToast();
   const confirm = useConfirm();
-  const [alunos, setAlunos] = useState<Student[]>([]);
-  const [alunoId, setAlunoId] = useState('');
+  const [aluno, setAluno] = useState<Student | null>(null);
+  const alunoId = aluno?.id ?? '';
   const [grades, setGrades] = useState<Grade[]>([]);
   const [sched, setSched] = useState<ScheduleData | null>(null);
   const [round, setRound] = useState('');
@@ -21,10 +22,8 @@ export default function AdminNotas() {
   const [recScore, setRecScore] = useState<Record<string, string>>({});
 
   const fail = (e: any) => toast(e.message, 'error');
-  const aluno = alunos.find((a) => a.id === alunoId);
   const loadGrades = () => api<Grade[]>(`grades/${alunoId}`).then(setGrades).catch(fail);
 
-  useEffect(() => { api<Student[]>('students').then(setAlunos).catch(fail); }, []);
   useEffect(() => {
     setRound(''); setItem(''); setSched(null);
     if (!aluno) return setGrades([]);
@@ -76,10 +75,7 @@ export default function AdminNotas() {
       <div className="card">
         <div className="card-header">
           <h3 className="font-semibold text-sm">Aluno</h3>
-          <select className="input max-w-md" value={alunoId} onChange={(e) => setAlunoId(e.target.value)}>
-            <option value="">Selecione um aluno…</option>
-            {alunos.map((a) => <option key={a.id} value={a.id}>{a.enrollment} — {a.name}</option>)}
-          </select>
+          <StudentPicker value={aluno} onChange={setAluno} />
         </div>
         <div className="p-6">
           {!aluno ? <Empty icon="📝" title="Selecione um aluno" /> : (

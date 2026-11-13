@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react';
 import { IoWalletOutline } from 'react-icons/io5';
 import PageHeader, { Empty } from '../../components/PageHeader';
+import StudentPicker from '../../components/StudentPicker';
 import { api, br, money, openPdf } from '../../lib/api';
 import { useToast } from '../../lib/toast';
 import { useConfirm } from '../../lib/confirm';
 import type { Invoice, Student } from '../../types';
 
 export default function AdminBoletos() {
-  const [alunos, setAlunos] = useState<Student[]>([]);
-  const [alunoId, setAlunoId] = useState('');
+  const [aluno, setAluno] = useState<Student | null>(null);
+  const alunoId = aluno?.id ?? '';
   const [boletos, setBoletos] = useState<Invoice[]>([]);
   const [valor, setValor] = useState('199');
   const [n, setN] = useState('6');
@@ -19,12 +20,10 @@ export default function AdminBoletos() {
   const fail = (e: any) => toast(e.message, 'error');
   const loadInvoices = (id = alunoId) => api<Invoice[]>(`invoices/${id}`).then(setBoletos).catch(fail);
 
-  useEffect(() => { api<Student[]>('students').then(setAlunos).catch(fail); }, []);
   useEffect(() => {
-    if (!alunoId) return setBoletos([]);
-    loadInvoices(alunoId);
-    const a = alunos.find((x) => x.id === alunoId);
-    if (a?.monthlyFee) setValor(String(a.monthlyFee));
+    if (!aluno) return setBoletos([]);
+    loadInvoices(aluno.id);
+    if (aluno.monthlyFee) setValor(String(aluno.monthlyFee));
   }, [alunoId]);
 
   const parcelas = boletos.filter((b) => b.kind === 'installment');
@@ -86,10 +85,7 @@ export default function AdminBoletos() {
       <div className="card">
         <div className="card-header">
           <h3 className="font-semibold text-sm">Aluno</h3>
-          <select className="input max-w-md" value={alunoId} onChange={(e) => setAlunoId(e.target.value)}>
-            <option value="">Selecione um aluno…</option>
-            {alunos.map((a) => <option key={a.id} value={a.id}>{a.enrollment} — {a.name}</option>)}
-          </select>
+          <StudentPicker value={aluno} onChange={setAluno} />
         </div>
         <div className="p-6">
           {!alunoId ? (

@@ -1,22 +1,34 @@
 import { useEffect, useState } from 'react';
 import PageHeader, { Empty, StatusPill } from '../../components/PageHeader';
 import Modal from '../../components/Modal';
+import Pagination from '../../components/Pagination';
+import StudentFilters from '../../components/StudentFilters';
 import { api, openPdf } from '../../lib/api';
+import { EMPTY_FILTERS, hasActiveFilters, StudentFilters as StudentFilterValues, useStudentList, useStudentsSummary } from '../../lib/students';
 import { useToast } from '../../lib/toast';
 import { useConfirm } from '../../lib/confirm';
 import type { Student } from '../../types';
 import StudentForm from './StudentForm';
 
 export default function AdminAlunos() {
-  const [alunos, setAlunos] = useState<Student[]>([]);
   const [editing, setEditing] = useState<Student | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [advancing, setAdvancing] = useState<Student | null>(null);
+  const [filters, setFilters] = useState<StudentFilterValues>(EMPTY_FILTERS);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const toast = useToast();
   const confirm = useConfirm();
+  const summary = useStudentsSummary();
 
-  const load = () => api<Student[]>('students').then(setAlunos).catch(() => {});
-  useEffect(() => { load(); }, []);
+  const { items: alunos, total, loading, error, reload: load } = useStudentList(filters, page, pageSize);
+
+  // qualquer mudança de filtro volta para a página 1
+  const changeFilters = (f: StudentFilterValues) => { setFilters(f); setPage(1); };
+  // se a última página ficou vazia (ex.: excluiu o único aluno dela), volta uma página
+  useEffect(() => {
+    if (!loading && !alunos.length && total > 0 && page > 1) setPage(Math.ceil(total / pageSize));
+  }, [loading, alunos.length, total, page, pageSize]);
 
   async function excluir(a: Student) {
     const ok = await confirm({
@@ -44,8 +56,17 @@ export default function AdminAlunos() {
       />
 
       <div className="card">
-        {!alunos.length ? (
-          <Empty icon="👤" title="Nenhum aluno cadastrado" desc='Clique em "Nova matrícula" para começar.' />
+        <StudentFilters filters={filters} onChange={changeFilters} classGroups={summary?.classGroups} />
+        {error ? (
+          <Empty icon="⚠️" title="Não foi possível carregar os alunos" desc={error} />
+        ) : !alunos.length ? (
+          loading ? (
+            <Empty icon="⏳" title="Carregando…" />
+          ) : hasActiveFilters(filters) ? (
+            <Empty icon="🔎" title="Nenhum aluno encontrado" desc="Ajuste ou limpe os filtros." />
+          ) : (
+            <Empty icon="👤" title="Nenhum aluno cadastrado" desc='Clique em "Nova matrícula" para começar.' />
+          )
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -89,6 +110,7 @@ export default function AdminAlunos() {
             </table>
           </div>
         )}
+        <Pagination page={page} pageSize={pageSize} total={total} onPage={setPage} onPageSize={(n) => { setPageSize(n); setPage(1); }} />
       </div>
 
       {showForm && <StudentForm student={editing} onClose={() => setShowForm(false)} onSaved={load} />}
