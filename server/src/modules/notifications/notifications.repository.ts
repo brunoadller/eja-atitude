@@ -1,9 +1,26 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/config/database';
 
 /** Dono das notificações: um aluno OU um admin (sempre vindo da sessão). */
 export type Recipient = { studentId: string } | { adminId: string };
 
+/** Conteúdo de um aviso (o destinatário é passado à parte). */
+export type NotificationContent = { type: string; title: string; message: string; link?: string };
+
+/** Aceita o prisma normal ou o "tx" de uma transação (para o aviso nascer junto com a ação). */
+type Db = Prisma.TransactionClient | typeof prisma;
+
 export const NotificationsRepository = {
+  createForStudent(studentId: string, content: NotificationContent, db: Db = prisma) {
+    return db.notification.create({ data: { ...content, studentId } });
+  },
+  /** Uma notificação para cada admin cadastrado agora. */
+  async createForAllAdmins(content: NotificationContent, db: Db = prisma) {
+    const admins = await db.admin.findMany({ select: { id: true } });
+    if (admins.length === 0) return 0;
+    const r = await db.notification.createMany({ data: admins.map((a) => ({ ...content, adminId: a.id })) });
+    return r.count;
+  },
   findByRecipient(recipient: Recipient, take: number) {
     return prisma.notification.findMany({
       where: recipient,

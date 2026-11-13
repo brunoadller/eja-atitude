@@ -6,6 +6,7 @@ import { DOCUMENT_TYPE_LIST } from '@/shared/constants/document-types';
 import { ForbiddenError } from '@/shared/errors/ForbiddenError';
 import { NotFoundError } from '@/shared/errors/NotFoundError';
 import { syncCompletedStatus } from '@/modules/grades/completion.service';
+import { NotificationsService } from '@/modules/notifications/notifications.service';
 import { DocumentsRepository } from './documents.repository';
 import { toAdminDocumentView, toStudentDocumentView } from './dto/document-response.dto';
 
@@ -70,7 +71,10 @@ export const DocumentsService = {
       reviewedAt: approve ? now : null,
     });
     removeFiles(oldFileNames);
-    if (approve) await syncCompletedStatus(studentId); // notas + documentos em dia → Concluído
+    if (approve) {
+      await syncCompletedStatus(studentId); // notas + documentos em dia → Concluído
+      await NotificationsService.notifyDocumentReviewed(studentId, type, 'approved'); // anexou e aprovou = aprovação para o aluno
+    }
 
     return toAdminDocumentView(await DocumentsRepository.findByIdWithAdmins(created.id));
   },
@@ -81,6 +85,7 @@ export const DocumentsService = {
     if (!doc) throw new NotFoundError('documento não encontrado');
     const updated = await DocumentsRepository.review(id, status, status === 'rejected' ? note ?? null : null, adminId);
     if (status === 'approved') await syncCompletedStatus(doc.studentId); // notas + documentos em dia → Concluído
+    await NotificationsService.notifyDocumentReviewed(doc.studentId, doc.type, status, updated.note);
     return toAdminDocumentView(updated);
   },
 };

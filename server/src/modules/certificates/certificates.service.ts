@@ -7,6 +7,7 @@ import { NotFoundError } from '@/shared/errors/NotFoundError';
 import { ValidationError } from '@/shared/errors/ValidationError';
 import { Session } from '@/shared/types/session';
 import { completionBlockMessage, evaluateCompletion, syncCompletedStatus } from '@/modules/grades/completion.service';
+import { NotificationsService } from '@/modules/notifications/notifications.service';
 import { renderAttestationPdf, renderCertificatePdf } from './certificates.pdf';
 
 async function loadStudent(id: string) {
@@ -101,9 +102,15 @@ export const CertificatesService = {
         });
         invoiceId = inv.id;
       }
-      return tx.documentRequest.create({
+      const created = await tx.documentRequest.create({
         data: { studentId, type, via, feeAmount: fee, invoiceId, status: fee > 0 ? 'awaiting_payment' : 'ready' },
       });
+      // Certificado: avisa cada admin, na mesma transação (se o aviso falhar, a solicitação também não é gravada)
+      if (type === 'certificate') {
+        const student = await tx.student.findUniqueOrThrow({ where: { id: studentId }, select: { name: true, enrollment: true } });
+        await NotificationsService.notifyCertificateRequested(tx, student, via, fee);
+      }
+      return created;
     });
   },
 
