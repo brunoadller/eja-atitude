@@ -3,6 +3,7 @@ import { IoWalletOutline } from 'react-icons/io5';
 import PageHeader, { Empty } from '../../components/PageHeader';
 import { api, br, money, openPdf } from '../../lib/api';
 import { useToast } from '../../lib/toast';
+import { useConfirm } from '../../lib/confirm';
 import type { Invoice, Student } from '../../types';
 
 export default function AdminBoletos() {
@@ -13,6 +14,7 @@ export default function AdminBoletos() {
   const [n, setN] = useState('6');
   const [venc, setVenc] = useState('');
   const toast = useToast();
+  const confirm = useConfirm();
 
   const fail = (e: any) => toast(e.message, 'error');
   const loadInvoices = (id = alunoId) => api<Invoice[]>(`invoices/${id}`).then(setBoletos).catch(fail);
@@ -40,7 +42,7 @@ export default function AdminBoletos() {
     try { await api(`invoices/${id}/pay`, { method: 'POST' }); toast('Marcado como pago', 'success'); loadInvoices(); } catch (e) { fail(e); }
   }
   async function reabrir(id: string) {
-    if (!confirm('Reabrir este boleto (desfazer o pagamento)?')) return;
+    if (!(await confirm('Reabrir este boleto (desfazer o pagamento)?'))) return;
     try { await api(`invoices/${id}/reopen`, { method: 'POST' }); loadInvoices(); } catch (e) { fail(e); }
   }
 

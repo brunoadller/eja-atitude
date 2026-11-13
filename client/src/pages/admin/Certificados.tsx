@@ -3,6 +3,7 @@ import { IoCheckmarkDoneOutline, IoPrintOutline } from 'react-icons/io5';
 import PageHeader, { Empty } from '../../components/PageHeader';
 import { api, money, openPdf } from '../../lib/api';
 import { useToast } from '../../lib/toast';
+import { useConfirm } from '../../lib/confirm';
 
 type RequestStatus = 'awaiting_payment' | 'ready' | 'issued';
 
@@ -39,6 +40,7 @@ const quando = (d?: string | null) =>
  */
 export default function AdminCertificados() {
   const toast = useToast();
+  const confirm = useConfirm();
   const [lista, setLista] = useState<CertificateRequest[]>([]);
   const [filtro, setFiltro] = useState<RequestStatus | 'all'>('ready');
   const [busy, setBusy] = useState<string | null>(null);
@@ -68,7 +70,7 @@ export default function AdminCertificados() {
   }
 
   async function emitir(r: CertificateRequest) {
-    if (!confirm(`Confirmar que o certificado (${r.via}ª via) de ${r.student.name} foi impresso, assinado e carimbado?`)) return;
+    if (!(await confirm(`Confirmar que o certificado (${r.via}ª via) de ${r.student.name} foi impresso, assinado e carimbado?`))) return;
     setBusy(r.id);
     try {
       await api(`certificates/requests/${r.id}/issue`, { method: 'PUT' });

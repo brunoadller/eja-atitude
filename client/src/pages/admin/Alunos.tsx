@@ -3,6 +3,7 @@ import PageHeader, { Empty, StatusPill } from '../../components/PageHeader';
 import Modal from '../../components/Modal';
 import { api, openPdf } from '../../lib/api';
 import { useToast } from '../../lib/toast';
+import { useConfirm } from '../../lib/confirm';
 import type { Student } from '../../types';
 import StudentForm from './StudentForm';
 
@@ -12,12 +13,13 @@ export default function AdminAlunos() {
   const [showForm, setShowForm] = useState(false);
   const [advancing, setAdvancing] = useState<Student | null>(null);
   const toast = useToast();
+  const confirm = useConfirm();
 
   const load = () => api<Student[]>('students').then(setAlunos).catch(() => {});
   useEffect(() => { load(); }, []);
 
   async function excluir(a: Student) {
-    if (!confirm(`Excluir ${a.name}? As notas, parcelas e documentos dele também serão apagados.`)) return;
+    if (!(await confirm(`Excluir ${a.name}? As notas, parcelas e documentos dele também serão apagados.`))) return;
     try {
       await api(`students/${a.id}`, { method: 'DELETE' });
       toast('Aluno excluído', 'success');

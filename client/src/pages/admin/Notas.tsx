@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react';
 import PageHeader, { Empty } from '../../components/PageHeader';
 import { api, br } from '../../lib/api';
 import { useToast } from '../../lib/toast';
+import { useConfirm } from '../../lib/confirm';
 import type { Grade, ScheduleData, Student } from '../../types';
 
 const yearOf = (s: Student) => new Date(s.enrollmentDate || Date.now()).getUTCFullYear();
 
 export default function AdminNotas() {
   const toast = useToast();
+  const confirm = useConfirm();
   const [alunos, setAlunos] = useState<Student[]>([]);
   const [alunoId, setAlunoId] = useState('');
   const [grades, setGrades] = useState<Grade[]>([]);
@@ -54,7 +56,7 @@ export default function AdminNotas() {
     try { await api(`grades/recovery/${g.id}/score`, { method: 'PUT', body: { score: Number((recScore[g.id] || '').replace(',', '.')) } }); loadGrades(); } catch (e) { fail(e); }
   };
   const remover = async (g: Grade) => {
-    if (!confirm('Remover este lançamento?')) return;
+    if (!(await confirm('Remover este lançamento?'))) return;
     try { await api(`grades/${g.id}`, { method: 'DELETE' }); loadGrades(); } catch (e) { fail(e); }
   };
 

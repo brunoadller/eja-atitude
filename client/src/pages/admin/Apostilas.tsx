@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 import PageHeader, { Empty } from '../../components/PageHeader';
 import { api, openPdf } from '../../lib/api';
 import { useToast } from '../../lib/toast';
+import { useConfirm } from '../../lib/confirm';
 import type { Book } from '../../types';
 
 export default function AdminApostilas() {
   const toast = useToast();
+  const confirm = useConfirm();
   const [books, setBooks] = useState<Book[]>([]);
   const [filter, setFilter] = useState<'' | '1' | '2'>('');
   const [moduleNumber, setModuleNumber] = useState<1 | 2>(1);
@@ -34,7 +36,7 @@ export default function AdminApostilas() {
   }
 
   async function del(b: Book) {
-    if (!confirm(`Remover a apostila "${b.title}"?`)) return;
+    if (!(await confirm(`Remover a apostila "${b.title}"?`))) return;
     try { await api(`books/${b.id}`, { method: 'DELETE' }); load(); } catch (e) { fail(e); }
   }
 
