@@ -17,9 +17,35 @@ const TAMANHO_MAX_BYTES = 5 * 1024 * 1024; // 5MB (mesmo limite do servidor)
 const quando = (d?: string | null) =>
   d ? new Date(d).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '';
 
+/** Situação dos documentos de um aluno, para a coluna da lista. */
+type Resumo = { pendentes: number; recusados: number; faltam: number };
+
+/** "faltam" conta só os obrigatórios que nem foram enviados; pendentes e recusados contam todos os documentos. */
+function resumir(docs: StudentDocument[], obrigatorios: string[]): Resumo {
+  return {
+    pendentes: docs.filter((d) => d.status === 'pending').length,
+    recusados: docs.filter((d) => d.status === 'rejected').length,
+    faltam: obrigatorios.filter((t) => !docs.some((d) => d.type === t)).length,
+  };
+}
+
+function SituacaoDocumentos({ resumo }: { resumo?: Resumo }) {
+  if (!resumo) return <span className="text-slate-400">…</span>;
+  const { pendentes, recusados, faltam } = resumo;
+  if (!pendentes && !recusados && !faltam) return <span className="pill-success">Completos</span>;
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {pendentes > 0 && <span className="pill-warning">{pendentes} em análise</span>}
+      {recusados > 0 && <span className="pill-danger">{recusados} recusado(s)</span>}
+      {faltam > 0 && <span className="pill-muted">{faltam} não enviado(s)</span>}
+    </div>
+  );
+}
+
 export default function AdminDocumentos() {
   const [alunos, setAlunos] = useState<Student[]>([]);
-  const [contagens, setContagens] = useState<Record<string, number>>({});
+  const [resumos, setResumos] = useState<Record<string, Resumo>>({});
+  const [obrigatorios, setObrigatorios] = useState<string[]>([]);
   const [busca, setBusca] = useState('');
   const [alunoSelecionado, setAlunoSelecionado] = useState<Student | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -35,20 +61,22 @@ export default function AdminDocumentos() {
   }, [searchParams, alunos, setSearchParams]);
 
   useEffect(() => {
-    api<Student[]>('/students').then(async (lista) => {
+    Promise.all([api<Student[]>('/students'), api<DocumentTypeInfo[]>('/documents/types')]).then(async ([lista, tipos]) => {
+      const obrig = tipos.filter((t) => t.required).map((t) => t.type);
       setAlunos(lista);
-      // Busca a contagem de documentos pendentes de cada aluno, em paralelo.
+      setObrigatorios(obrig);
+      // Busca os documentos de cada aluno, em paralelo, e monta a situação de cada um.
+      // Se a busca de um aluno falhar, ele fica sem situação ("…") em vez de aparecer como completo.
       const entradas = await Promise.all(
         lista.map(async (a) => {
           try {
-            const docs = await api<StudentDocument[]>(`/documents/${a.id}`);
-            return [a.id, docs.filter((d) => d.status === 'pending').length] as const;
+            return [a.id, resumir(await api<StudentDocument[]>(`/documents/${a.id}`), obrig)] as const;
           } catch {
-            return [a.id, 0] as const;
+            return null;
           }
         })
       );
-      setContagens(Object.fromEntries(entradas));
+      setResumos(Object.fromEntries(entradas.filter((e) => e !== null)));
     });
   }, []);
 
@@ -82,7 +110,7 @@ export default function AdminDocumentos() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-neutral-50">
-                  {['Matrícula', 'Aluno', 'Pendentes de análise', ''].map((h) => (
+                  {['Matrícula', 'Aluno', 'Situação dos documentos', ''].map((h) => (
                     <th key={h} className="text-left px-4 py-3 text-[11px] uppercase tracking-wider text-slate-500 font-medium">
                       {h}
                     </th>
@@ -97,11 +125,7 @@ export default function AdminDocumentos() {
                     </td>
                     <td className="px-4 py-3 font-medium">{a.name}</td>
                     <td className="px-4 py-3">
-                      {contagens[a.id] > 0 ? (
-                        <span className="pill-warning">{contagens[a.id]} pendente(s)</span>
-                      ) : (
-                        <span className="pill-muted">Em dia</span>
-                      )}
+                      <SituacaoDocumentos resumo={resumos[a.id]} />
                     </td>
                     <td className="px-4 py-3 text-right">
                       <button className="btn-ghost btn-sm" onClick={() => setAlunoSelecionado(a)}>
@@ -120,8 +144,8 @@ export default function AdminDocumentos() {
         <RevisaoModal
           aluno={alunoSelecionado}
           onClose={() => setAlunoSelecionado(null)}
-          onAtualizado={(pendentes) =>
-            setContagens((c) => ({ ...c, [alunoSelecionado.id]: pendentes }))
+          onAtualizado={(docs) =>
+            setResumos((r) => ({ ...r, [alunoSelecionado.id]: resumir(docs, obrigatorios) }))
           }
         />
       )}
@@ -136,7 +160,7 @@ function RevisaoModal({
 }: {
   aluno: Student;
   onClose: () => void;
-  onAtualizado: (pendentes: number) => void;
+  onAtualizado: (docs: StudentDocument[]) => void;
 }) {
   const [tipos, setTipos] = useState<DocumentTypeInfo[]>([]);
   const [docs, setDocs] = useState<StudentDocument[]>([]);
@@ -144,7 +168,7 @@ function RevisaoModal({
   const load = () =>
     api<StudentDocument[]>(`/documents/${aluno.id}`).then((d) => {
       setDocs(d);
-      onAtualizado(d.filter((x) => x.status === 'pending').length);
+      onAtualizado(d);
     });
 
   useEffect(() => {

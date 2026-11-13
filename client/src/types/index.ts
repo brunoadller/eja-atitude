@@ -99,6 +99,8 @@ export interface StudentDocument {
 export interface DocumentTypeInfo {
   type: string;
   label: string;
+  /** Obrigatório para o certificado (a Reservista é "se possuir" e não conta). */
+  required: boolean;
 }
 
 export interface ClassSession {
