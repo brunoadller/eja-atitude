@@ -91,11 +91,11 @@ Se o admin já existe e está sem e-mail, o seed preenche com `ADMIN_EMAIL`.
 
 - Nome: Escola de Ensino Médio Atitude Pelotas. Razão social: Centro de Aprendizagem Atitude LTDA.
 - Deliberação nº 409/2026 (substitui a anterior). Endereço: Andrade Neves 2288. Telefones: 30283591 e 96020080.
-- CNPJ: a preencher. O logo substitui o "UNITEC" que aparecia no certificado; procurar "unitec" em todo o projeto.
+- CNPJ: 10.269.747/0001-01 (fica em `server/src/config/school.ts`). O logo substitui o "UNITEC" que aparecia no certificado; procurar "unitec" em todo o projeto.
 
 ## A CONFIRMAR com o dono (não assumir)
 
-- CNPJ da escola, lista de documentos obrigatórios e se o logo "Escola Técnica Atitude Pelotas" é o que deve aparecer.
+- Lista de documentos obrigatórios e se o logo "Escola Técnica Atitude Pelotas" é o que deve aparecer.
 - Nomenclatura das turmas.
 - Valores de taxas (R$ 30 / R$ 70) e juros (1% a.m. em `invoice.constants.ts`).
 - Regra de troca de nota por prova.

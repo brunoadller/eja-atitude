@@ -14,8 +14,8 @@ export const SCHOOL = {
   /** A preencher. */
   zipCode: '',
   phones: ['(53) 3028-3591', '(53) 9602-0080'],
-  /** A preencher quando a empresa enviar. Vazio = o PDF não mostra a linha do CNPJ. */
-  cnpj: '',
+  /** Vazio = o PDF não mostra a linha do CNPJ. */
+  cnpj: '10.269.747/0001-01',
   /** Arquivo em server/assets usado no cabeçalho dos PDFs. */
   logoPdf: 'logo-escola-pdf.png',
 } as const;
