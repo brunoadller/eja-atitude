@@ -21,6 +21,30 @@ export const NotificationsRepository = {
     const r = await db.notification.createMany({ data: admins.map((a) => ({ ...content, adminId: a.id })) });
     return r.count;
   },
+  /**
+   * Para cada admin: se já existe um aviso NÃO LIDO do mesmo tipo e link, atualiza o texto e o traz para o topo;
+   * senão, cria um novo. Assim, vários envios seguidos do mesmo aluno viram um aviso só.
+   */
+  createOrUpdateUnreadForAllAdmins(content: NotificationContent & { link: string }) {
+    return prisma.$transaction(async (tx) => {
+      const admins = await tx.admin.findMany({ select: { id: true } });
+      for (const { id: adminId } of admins) {
+        const open = await tx.notification.findFirst({
+          where: { adminId, type: content.type, link: content.link, readAt: null },
+          select: { id: true },
+        });
+        if (open) {
+          await tx.notification.update({
+            where: { id: open.id },
+            data: { title: content.title, message: content.message, createdAt: new Date() },
+          });
+        } else {
+          await tx.notification.create({ data: { ...content, adminId } });
+        }
+      }
+      return admins.length;
+    });
+  },
   findByRecipient(recipient: Recipient, take: number) {
     return prisma.notification.findMany({
       where: recipient,

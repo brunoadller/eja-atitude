@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
+import { prisma } from '@/config/database';
 import { logger } from '@/config/logger';
-import { DOCUMENT_TYPE_LABELS, DocumentType } from '@/shared/constants/document-types';
+import { DOCUMENT_TYPE_LABELS, DOCUMENT_TYPES, DocumentType } from '@/shared/constants/document-types';
 import { NotFoundError } from '@/shared/errors/NotFoundError';
 import { Session } from '@/shared/types/session';
 import { fmtMoney } from '@/shared/utils/dates';
@@ -13,6 +14,7 @@ const LIST_LIMIT = 50;
 export const NOTIFICATION_TYPES = {
   documentApproved: 'document_approved',
   documentRejected: 'document_rejected',
+  documentsSubmitted: 'documents_submitted',
   certificateRequested: 'certificate_requested',
 } as const;
 
@@ -20,7 +22,12 @@ export const NOTIFICATION_TYPES = {
 const LINKS = {
   studentDocuments: '/secretaria/documentos',
   adminCertificates: '/certificados',
+  /** Abre a revisão de documentos daquele aluno. */
+  adminStudentDocuments: (studentId: string) => `/documentos?aluno=${encodeURIComponent(studentId)}`,
 } as const;
+
+/** "CPF", "CPF e RG", "CPF, RG e Título de Eleitor" */
+const joinPt = (items: string[]) => new Intl.ListFormat('pt-BR', { style: 'long', type: 'conjunction' }).format(items);
 
 const documentLabel = (type: string) => DOCUMENT_TYPE_LABELS[type as DocumentType] ?? type;
 
@@ -88,6 +95,40 @@ export const NotificationsService = {
       await NotificationsRepository.createForStudent(studentId, content);
     } catch (err) {
       logger.error({ err: (err as Error).message, studentId, documentType }, 'não foi possível criar a notificação do documento');
+    }
+  },
+
+  /**
+   * Avisa a secretaria (cada admin) que o aluno enviou documento(s) para verificação.
+   * UM aviso por aluno: lista todos os documentos que ele enviou e ainda estão pendentes de análise.
+   * Se o aviso anterior ainda não foi lido, ele é atualizado (não cria outro).
+   * Se falhar, o envio do aluno NÃO é desfeito: o erro só vai para o log.
+   */
+  async notifyDocumentsSubmitted(studentId: string) {
+    try {
+      const [student, pending] = await Promise.all([
+        prisma.student.findUniqueOrThrow({ where: { id: studentId }, select: { name: true, enrollment: true } }),
+        prisma.studentDocument.findMany({
+          where: { studentId, status: 'pending', uploadedBy: 'student' },
+          select: { type: true },
+        }),
+      ]);
+      if (pending.length === 0) return;
+      // na ordem da lista de documentos da matrícula
+      const order = (t: string) => DOCUMENT_TYPES.indexOf(t as DocumentType);
+      const labels = pending.map((d) => d.type).sort((a, b) => order(a) - order(b)).map(documentLabel);
+      const what =
+        labels.length === 1
+          ? `enviou o documento ${labels[0]} para verificação.`
+          : `enviou documentos para verificação: ${joinPt(labels)}.`;
+      await NotificationsRepository.createOrUpdateUnreadForAllAdmins({
+        type: NOTIFICATION_TYPES.documentsSubmitted,
+        title: 'Documentos para verificar',
+        message: `${student.name} (matrícula ${student.enrollment}) ${what}`,
+        link: LINKS.adminStudentDocuments(studentId),
+      });
+    } catch (err) {
+      logger.error({ err: (err as Error).message, studentId }, 'não foi possível criar a notificação de documentos enviados');
     }
   },
 

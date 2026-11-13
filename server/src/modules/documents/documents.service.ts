@@ -51,6 +51,7 @@ export const DocumentsService = {
       uploadedBy: 'student',
     });
     removeFiles(oldFileNames);
+    await NotificationsService.notifyDocumentsSubmitted(studentId); // um aviso por aluno, com a lista do que falta verificar
     return toStudentDocumentView(created);
   },
 
