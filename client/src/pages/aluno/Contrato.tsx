@@ -26,7 +26,6 @@ export default function Contrato({ gate = false }: Props) {
 
   useEffect(() => {
     api<{ version: string; text: string }>('/contracts').then((d) => {
-      console.log('CONTRATO RECEBIDO:', d);
       setTexto(d.text);
       setVersao(d.version);
     });
