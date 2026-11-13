@@ -39,7 +39,7 @@ Não reescreva o projeto inteiro; faça alterações pontuais e mostre o diff.
 
 - Camadas no server: route → controller → service → repository (Prisma), com DTOs, validação Zod e erros `AppError` centralizados.
 - Imports com alias `@/` (tsconfig `paths`, sem `baseUrl`; build usa `tsc-alias`).
-- **Colunas e nomes de código em inglês; textos da interface e dados exibidos em português.**
+- **Campos do Prisma e nomes de código em inglês; textos da interface e dados exibidos em português.**
 - Id de aluno é string aleatória (não expor quantidade de alunos).
 - Status: seguir o padrão que o projeto já usa.
 - Nome, razão social, logo e dados de cabeçalho da escola ficam em uma configuração central; nunca escrever o nome da escola direto no código ou nos PDFs.
