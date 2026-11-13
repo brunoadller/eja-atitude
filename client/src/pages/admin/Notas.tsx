@@ -56,7 +56,13 @@ export default function AdminNotas() {
     try { await api(`grades/recovery/${g.id}/score`, { method: 'PUT', body: { score: Number((recScore[g.id] || '').replace(',', '.')) } }); loadGrades(); } catch (e) { fail(e); }
   };
   const remover = async (g: Grade) => {
-    if (!(await confirm('Remover este lançamento?'))) return;
+    const ok = await confirm({
+      title: 'Remover nota',
+      message: 'Remover este lançamento?',
+      confirmLabel: 'Remover',
+      danger: true,
+    });
+    if (!ok) return;
     try { await api(`grades/${g.id}`, { method: 'DELETE' }); loadGrades(); } catch (e) { fail(e); }
   };
 

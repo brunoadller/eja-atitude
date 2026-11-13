@@ -19,7 +19,13 @@ export default function AdminAlunos() {
   useEffect(() => { load(); }, []);
 
   async function excluir(a: Student) {
-    if (!(await confirm(`Excluir ${a.name}? As notas, parcelas e documentos dele também serão apagados.`))) return;
+    const ok = await confirm({
+      title: 'Excluir aluno',
+      message: `Excluir ${a.name}? As notas, parcelas e documentos dele também serão apagados.`,
+      confirmLabel: 'Excluir',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await api(`students/${a.id}`, { method: 'DELETE' });
       toast('Aluno excluído', 'success');

@@ -36,7 +36,13 @@ export default function AdminApostilas() {
   }
 
   async function del(b: Book) {
-    if (!(await confirm(`Remover a apostila "${b.title}"?`))) return;
+    const ok = await confirm({
+      title: 'Remover apostila',
+      message: `Remover a apostila "${b.title}"?`,
+      confirmLabel: 'Remover',
+      danger: true,
+    });
+    if (!ok) return;
     try { await api(`books/${b.id}`, { method: 'DELETE' }); load(); } catch (e) { fail(e); }
   }
 
