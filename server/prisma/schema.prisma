@@ -48,6 +48,7 @@ model Student {
   documents           StudentDocument[]
   passwordResets      PasswordReset[]
   documentRequests    DocumentRequest[]
+  notifications       Notification[]
 
   @@map("alunos")
 }
@@ -125,6 +126,7 @@ model Admin {
   uploadedDocuments StudentDocument[]    @relation("DocumentUploadedBy")
   reviewedDocuments StudentDocument[]    @relation("DocumentReviewedBy")
   issuedRequests    DocumentRequest[]    @relation("RequestIssuedBy")
+  notifications     Notification[]
 
   @@map("admins")
 }
@@ -252,4 +254,29 @@ model DocumentRequest {
 
   @@index([studentId, type])
   @@map("solicitacoes_documentos")
+}
+
+// Aviso para UM destinatário: um aluno OU um admin (o banco garante com CHECK na migration).
+// Para a secretaria, cria-se uma notificação por admin.
+model Notification {
+  id        String    @id @default(cuid())
+  studentId String?   @map("aluno_id")
+  adminId   String?   @map("admin_id")
+  // document_approved | document_rejected | certificate_requested
+  type      String    @map("tipo")
+  // Textos em português, gravados no momento do aviso (com o motivo, se recusa).
+  title     String    @map("titulo")
+  message   String    @map("mensagem") @db.Text
+  // Tela do client para onde o clique leva (ex.: /secretaria/documentos).
+  link      String?
+  // Vazio = não lida.
+  readAt    DateTime? @map("lida_em")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  student   Student?  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  admin     Admin?    @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, readAt])
+  @@index([adminId, readAt])
+  @@map("notificacoes")
 }
