@@ -26,7 +26,17 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-2">
+    <div className="min-h-screen flex flex-col lg:grid lg:grid-cols-2">
+      {/* HERO DO CELULAR E DO TABLET: faixa compacta; o formulário sobe por cima dela */}
+      <div className="lg:hidden relative overflow-hidden bg-gradient-to-br from-slate-900 to-slate-800 px-6 pt-6 pb-10 grid place-items-center">
+        <div className="absolute -top-24 -right-20 w-72 h-72 rounded-full bg-indigo-500/40 blur-3xl" />
+        <div className="absolute -bottom-24 -left-16 w-56 h-56 rounded-full bg-sky-400/20 blur-3xl" />
+        {/* logo tem letras escuras: fica numa caixa branca para aparecer no fundo escuro */}
+        <div className="relative bg-white rounded-xl px-4 py-2 shadow-sm">
+          <img src={SCHOOL_LOGO} alt={school?.name ?? 'Logo da escola'} className="h-12 w-auto" />
+        </div>
+      </div>
+
       {/* HERO */}
       <div className="hidden lg:flex flex-col justify-between p-16 bg-gradient-to-br from-slate-900 to-slate-800 text-white relative overflow-hidden">
         <div className="absolute -top-40 -right-40 w-[600px] h-[600px] rounded-full bg-indigo-500/30 blur-3xl" />
@@ -55,7 +65,8 @@ export default function Login() {
       </div>
 
       {/* FORM */}
-      <div className="grid place-items-center bg-white p-6 lg:p-10">
+      {/* no celular o cartão branco sobe sobre a faixa escura (cantos de cima arredondados) */}
+      <div className="flex-1 relative -mt-6 rounded-t-3xl bg-white px-6 pt-6 pb-8 grid justify-items-center items-start lg:mt-0 lg:rounded-none lg:items-center lg:p-10">
         <form onSubmit={handleSubmit} className="w-full max-w-sm">
           <h2 className="text-3xl font-bold tracking-tight mb-2">Bem-vindo(a)</h2>
           <p className="text-slate-500 mb-8">Acesse a plataforma EJA para continuar seus estudos.</p>

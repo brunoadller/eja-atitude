@@ -22,7 +22,7 @@ export default function AlunoNotas() {
   return (
     <>
       <PageHeader title="Minhas Notas" subtitle="Provas e recuperações" />
-      <div className="card">
+      <div className="card overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-slate-500 border-b border-slate-100">

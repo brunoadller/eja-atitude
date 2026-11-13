@@ -20,8 +20,8 @@ export default function AlunoLayout() {
     <NotificationsProvider>
       <div className="min-h-screen flex flex-col lg:flex-row">
         <Sidebar items={items} role="aluno" />
-        <MobileNav items={items} />
-        <main className="flex-1 p-6 lg:p-10 overflow-x-hidden">
+        <MobileNav items={items} role="aluno" />
+        <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-10 overflow-x-hidden">
           <Outlet />
         </main>
       </div>

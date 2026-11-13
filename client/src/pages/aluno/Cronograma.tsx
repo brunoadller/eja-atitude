@@ -41,8 +41,8 @@ export default function AlunoCronograma() {
         <div className="grid gap-3">
           {days.map((d) => (
             <div key={d.date} className={`card p-4 flex gap-4 ${d.round ? 'border-indigo-300 bg-indigo-50/40' : ''}`}>
-              <div className="w-28 shrink-0 font-semibold">{br(d.date)}</div>
-              <div className="text-sm">
+              <div className="w-24 sm:w-28 shrink-0 font-semibold">{br(d.date)}</div>
+              <div className="text-sm min-w-0">
                 {d.lines.map((l, i) => <div key={i}>{l}</div>)}
                 {d.round && <span className="pill-accent">Provas — Prova {d.round}</span>}
               </div>
