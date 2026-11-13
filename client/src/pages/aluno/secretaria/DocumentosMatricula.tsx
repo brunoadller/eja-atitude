@@ -15,8 +15,12 @@ export default function DocumentosMatricula() {
   const [tipos, setTipos] = useState<DocumentTypeInfo[]>([]);
   const [docs, setDocs] = useState<StudentDocument[]>([]);
   const [enviando, setEnviando] = useState<string | null>(null);
+  const [carregado, setCarregado] = useState(false); // evita mostrar "faltam todos" antes da lista chegar
 
-  const load = () => api<StudentDocument[]>('/documents').then(setDocs).catch(() => {});
+  const load = () =>
+    api<StudentDocument[]>('/documents')
+      .then((d) => { setDocs(d); setCarregado(true); })
+      .catch(() => {});
   useEffect(() => {
     // a lista de tipos vem do servidor (fonte única)
     api<DocumentTypeInfo[]>('/documents/types').then(setTipos).catch(() => {});
@@ -47,8 +51,36 @@ export default function DocumentosMatricula() {
     }
   }
 
+  // Resumo só dos obrigatórios (a Reservista é "se possuir" e não conta)
+  const obrigatorios = tipos.filter((t) => t.required);
+  const statusDe = (type: string) => docs.find((d) => d.type === type)?.status;
+  const aprovados = obrigatorios.filter((t) => statusDe(t.type) === 'approved').length;
+  const emAnalise = obrigatorios.filter((t) => statusDe(t.type) === 'pending').length;
+  const recusados = obrigatorios.filter((t) => statusDe(t.type) === 'rejected').length;
+  const naoEnviados = obrigatorios.filter((t) => !statusDe(t.type)).length;
+  const faltam = obrigatorios.length - aprovados;
+
   return (
     <div className="space-y-3 max-w-2xl">
+      {carregado && obrigatorios.length > 0 && (
+        <div className={`card p-4 text-sm ${faltam ? '' : 'bg-emerald-50'}`}>
+          {faltam === 0 ? (
+            <div className="font-medium text-emerald-700">Documentação completa: todos os {obrigatorios.length} documentos obrigatórios foram aprovados.</div>
+          ) : (
+            <>
+              <div className="font-medium">
+                {aprovados} de {obrigatorios.length} documentos obrigatórios aprovados · faltam {faltam}
+              </div>
+              <div className="mt-1 text-xs text-slate-500 flex flex-wrap gap-x-4 gap-y-1">
+                {naoEnviados > 0 && <span>{naoEnviados} para enviar</span>}
+                {recusados > 0 && <span className="text-red-600">{recusados} recusado(s): reenvie</span>}
+                {emAnalise > 0 && <span className="text-amber-600">{emAnalise} em análise pela secretaria</span>}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
       <div className="card p-4 text-sm text-slate-500">
         Envie os documentos abaixo em <strong className="text-slate-900">PDF, JPG ou PNG</strong>, até{' '}
         <strong className="text-slate-900">5MB</strong> cada. A secretaria analisa e aprova, ou informa o motivo e
