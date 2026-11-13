@@ -43,6 +43,11 @@ Não reescreva o projeto inteiro; faça alterações pontuais e mostre o diff.
 - Id de aluno é string aleatória (não expor quantidade de alunos).
 - Status: seguir o padrão que o projeto já usa.
 - Nome, razão social, logo e dados de cabeçalho da escola ficam em uma configuração central; nunca escrever o nome da escola direto no código ou nos PDFs.
+- **Idioma do código:** todo código novo em inglês: nomes de arquivos, pastas, variáveis, funções, componentes, tipos e branches. Textos que o usuário vê (telas, mensagens de erro, PDFs, e-mails) ficam em português. Mensagens de commit continuam em português.
+- **Banco:** nomes de tabelas e colunas seguem o padrão já usado (português via `@map`/`@@map` no `schema.prisma`); o código usa inglês.
+- **Sem diálogos nativos:** nunca usar `alert()`, `confirm()` ou `prompt()`. Usar o modal (`client/src/components/Modal.tsx`) e o aviso/toast (`client/src/lib/toast.tsx`) do projeto.
+- **Reaproveitar antes de criar:** antes de criar função ou componente, procurar se já existe um equivalente e reaproveitar. Se o que for criado for reutilizável, colocar em pasta compartilhada (`client/src/components`, `client/src/lib` ou o equivalente no server).
+- **Nomes sugeridos em português:** quando o dono sugerir um nome em português para código, avisar e propor o equivalente em inglês, em uma linha. Ao criar nomes novos, explicar a escolha de forma breve.
 
 ## Variáveis de ambiente (`server/.env`, modelo em `.env.example`)
 
