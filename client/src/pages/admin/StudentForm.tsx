@@ -1,15 +1,21 @@
 import { FormEvent, ReactNode, useState } from 'react';
 import Modal from '../../components/Modal';
-import { EnrollmentForm, maskCep, maskCpf, maskPhone, onlyDigits, validateEnrollment } from '../../helpers/validateStudent';
+import { EnrollmentForm, FieldErrors, maskCep, maskCpf, maskPhone, onlyDigits, validateEnrollment } from '../../helpers/validateStudent';
 import { api, money } from '../../lib/api';
 import { useToast } from '../../lib/toast';
 import { MODULE_NAMES, Student } from '../../types';
 
-function Field({ label, children, full }: { label: string; children: ReactNode; full?: boolean }) {
+/** Campo com rótulo, borda vermelha e mensagem logo abaixo quando há erro (name = chave do campo no formulário). */
+function Field({ name, label, error, children, full }: { name: keyof EnrollmentForm; label: string; error?: string; children: ReactNode; full?: boolean }) {
   return (
-    <div className={full ? 'sm:col-span-2' : ''}>
+    <div
+      data-field={name}
+      data-invalid={error ? 'true' : undefined}
+      className={`${full ? 'sm:col-span-2' : ''} ${error ? '[&_.input]:border-red-500 [&_.input]:ring-1 [&_.input]:ring-red-200' : ''}`}
+    >
       <label className="label">{label} <span className="text-red-500">*</span></label>
       {children}
+      {error && <p role="alert" className="text-xs text-red-600 mt-1">{error}</p>}
     </div>
   );
 }
@@ -23,7 +29,8 @@ export default function StudentForm({ student, onClose, onSaved }: { student: St
   const isEdit = !!student;
   const toast = useToast();
   const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState<string[]>([]);
+  const [errors, setErrors] = useState<FieldErrors>({});
+  const [serverError, setServerError] = useState('');
   const [created, setCreated] = useState<{ name: string; enrollment: string; temporaryPassword?: string } | null>(null);
 
   const [f, setF] = useState<EnrollmentForm>(
@@ -31,13 +38,29 @@ export default function StudentForm({ student, onClose, onSaved }: { student: St
       ? { ...student, birthDate: student.birthDate?.slice(0, 10) }
       : { nationality: 'Brasileiro', gender: '', monthlyFee: 199, installments: 6, firstDueDate: firstOfNextMonth() },
   );
-  const set = (k: keyof EnrollmentForm, v: any) => setF((p) => ({ ...p, [k]: v }));
+  const set = (k: keyof EnrollmentForm, v: any) => {
+    setF((p) => ({ ...p, [k]: v }));
+    // o erro do campo some assim que a pessoa começa a corrigir
+    setErrors((p) => { if (!p[k]) return p; const { [k]: _removed, ...rest } = p; return rest; });
+  };
 
   async function submit(e: FormEvent) {
     e.preventDefault();
+    const form = e.currentTarget;
     const errs = validateEnrollment(f, isEdit);
     setErrors(errs);
-    if (errs.length) return;
+    setServerError('');
+    const count = Object.keys(errs).length;
+    if (count) {
+      toast(count === 1 ? 'Corrija o campo destacado em vermelho' : `Corrija os ${count} campos destacados em vermelho`, 'error');
+      // depois de pintar os erros: rola até o primeiro campo errado e põe o cursor nele
+      requestAnimationFrame(() => {
+        const first = form.querySelector<HTMLElement>('[data-invalid="true"]');
+        first?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        first?.querySelector<HTMLElement>('input, select, textarea')?.focus({ preventScroll: true });
+      });
+      return;
+    }
 
     const personal = {
       name: f.name!.trim(), cpf: onlyDigits(f.cpf!), rg: f.rg!.trim(), birthDate: f.birthDate, birthplace: f.birthplace!.trim(),
@@ -70,7 +93,8 @@ export default function StudentForm({ student, onClose, onSaved }: { student: St
         setCreated({ name: r.name, enrollment: r.enrollment, temporaryPassword: r.temporaryPassword });
       }
     } catch (err: any) {
-      setErrors([err.message]);
+      setServerError(err.message);
+      toast(err.message, 'error');
     } finally {
       setSaving(false);
     }
@@ -98,17 +122,10 @@ export default function StudentForm({ student, onClose, onSaved }: { student: St
 
   return (
     <Modal title={isEdit ? 'Editar aluno' : 'Nova matrícula'} onClose={onClose} size="lg">
-      <form onSubmit={submit} className="p-6">
-        {errors.length > 0 && (
-          <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm">
-            <div className="font-medium mb-1">Corrija antes de salvar:</div>
-            <ul className="list-disc pl-5">{errors.map((e) => <li key={e}>{e}</li>)}</ul>
-          </div>
-        )}
-
+      <form onSubmit={submit} noValidate className="p-6">
         <div className="grid sm:grid-cols-2 gap-4">
           {!isEdit && (
-            <Field label="Módulo da matrícula" full>
+            <Field name="moduleNumber" label="Módulo da matrícula" error={errors.moduleNumber} full>
               <select className="input" value={f.moduleNumber ?? ''} onChange={(e) => set('moduleNumber', Number(e.target.value))}>
                 <option value="">Selecione…</option>
                 <option value={1}>{MODULE_NAMES[1]}</option>
@@ -117,28 +134,28 @@ export default function StudentForm({ student, onClose, onSaved }: { student: St
               <p className="text-xs text-slate-500 mt-1">O módulo define a turma, o cronograma e as apostilas que o aluno recebe.</p>
             </Field>
           )}
-          <Field label="Nome completo" full><input className="input" value={f.name || ''} onChange={(e) => set('name', e.target.value)} /></Field>
-          <Field label="CPF"><input className="input" inputMode="numeric" value={f.cpf || ''} onChange={(e) => set('cpf', maskCpf(e.target.value))} placeholder="000.000.000-00" /></Field>
-          <Field label="RG (Identidade)"><input className="input" value={f.rg || ''} onChange={(e) => set('rg', e.target.value)} /></Field>
-          <Field label="Data de nascimento"><input type="date" className="input" value={f.birthDate || ''} onChange={(e) => set('birthDate', e.target.value)} /></Field>
-          <Field label="Naturalidade (cidade / UF)"><input className="input" placeholder="Jaguarão / RS" value={f.birthplace || ''} onChange={(e) => set('birthplace', e.target.value)} /></Field>
-          <Field label="Gênero">
+          <Field name="name" label="Nome completo" error={errors.name} full><input className="input" value={f.name || ''} onChange={(e) => set('name', e.target.value)} /></Field>
+          <Field name="cpf" label="CPF" error={errors.cpf}><input className="input" inputMode="numeric" value={f.cpf || ''} onChange={(e) => set('cpf', maskCpf(e.target.value))} placeholder="000.000.000-00" /></Field>
+          <Field name="rg" label="RG (Identidade)" error={errors.rg}><input className="input" value={f.rg || ''} onChange={(e) => set('rg', e.target.value)} /></Field>
+          <Field name="birthDate" label="Data de nascimento" error={errors.birthDate}><input type="date" className="input" value={f.birthDate || ''} onChange={(e) => set('birthDate', e.target.value)} /></Field>
+          <Field name="birthplace" label="Naturalidade (cidade / UF)" error={errors.birthplace}><input className="input" placeholder="Jaguarão / RS" value={f.birthplace || ''} onChange={(e) => set('birthplace', e.target.value)} /></Field>
+          <Field name="gender" label="Gênero" error={errors.gender}>
             <select className="input" value={f.gender || ''} onChange={(e) => set('gender', e.target.value)}>
               <option value="">Selecione…</option><option>Masculino</option><option>Feminino</option><option>Outro</option>
             </select>
           </Field>
-          <Field label="Nacionalidade"><input className="input" value={f.nationality || ''} onChange={(e) => set('nationality', e.target.value)} /></Field>
-          <Field label="E-mail (recebe o código de recuperação de senha)"><input type="email" className="input" value={f.email || ''} onChange={(e) => set('email', e.target.value)} /></Field>
-          <Field label="Telefone"><input className="input" inputMode="numeric" value={f.phone || ''} onChange={(e) => set('phone', maskPhone(e.target.value))} placeholder="(53) 99999-9999" /></Field>
-          <Field label="Endereço" full><input className="input" value={f.address || ''} onChange={(e) => set('address', e.target.value)} /></Field>
-          <Field label="Cidade"><input className="input" value={f.city || ''} onChange={(e) => set('city', e.target.value)} /></Field>
+          <Field name="nationality" label="Nacionalidade" error={errors.nationality}><input className="input" value={f.nationality || ''} onChange={(e) => set('nationality', e.target.value)} /></Field>
+          <Field name="email" label="E-mail (recebe o código de recuperação de senha)" error={errors.email}><input type="email" className="input" value={f.email || ''} onChange={(e) => set('email', e.target.value)} /></Field>
+          <Field name="phone" label="Telefone" error={errors.phone}><input className="input" inputMode="numeric" value={f.phone || ''} onChange={(e) => set('phone', maskPhone(e.target.value))} placeholder="(53) 99999-9999" /></Field>
+          <Field name="address" label="Endereço" error={errors.address} full><input className="input" value={f.address || ''} onChange={(e) => set('address', e.target.value)} /></Field>
+          <Field name="city" label="Cidade" error={errors.city}><input className="input" value={f.city || ''} onChange={(e) => set('city', e.target.value)} /></Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="UF"><input className="input" maxLength={2} value={f.state || ''} onChange={(e) => set('state', e.target.value.toUpperCase())} /></Field>
-            <Field label="CEP"><input className="input" inputMode="numeric" value={f.zipCode || ''} onChange={(e) => set('zipCode', maskCep(e.target.value))} /></Field>
+            <Field name="state" label="UF" error={errors.state}><input className="input" maxLength={2} value={f.state || ''} onChange={(e) => set('state', e.target.value.toUpperCase())} /></Field>
+            <Field name="zipCode" label="CEP" error={errors.zipCode}><input className="input" inputMode="numeric" value={f.zipCode || ''} onChange={(e) => set('zipCode', maskCep(e.target.value))} /></Field>
           </div>
-          <Field label="Nome da mãe"><input className="input" value={f.motherName || ''} onChange={(e) => set('motherName', e.target.value)} /></Field>
-          <Field label="Nome do pai"><input className="input" placeholder='Se não houver: "Não declarado"' value={f.fatherName || ''} onChange={(e) => set('fatherName', e.target.value)} /></Field>
-          <Field label="Nível escolar anterior"><input className="input" placeholder="Ex: Ensino Fundamental completo" value={f.educationLevel || ''} onChange={(e) => set('educationLevel', e.target.value)} /></Field>
+          <Field name="motherName" label="Nome da mãe" error={errors.motherName}><input className="input" value={f.motherName || ''} onChange={(e) => set('motherName', e.target.value)} /></Field>
+          <Field name="fatherName" label="Nome do pai" error={errors.fatherName}><input className="input" placeholder='Se não houver: "Não declarado"' value={f.fatherName || ''} onChange={(e) => set('fatherName', e.target.value)} /></Field>
+          <Field name="educationLevel" label="Nível escolar anterior" error={errors.educationLevel}><input className="input" placeholder="Ex: Ensino Fundamental completo" value={f.educationLevel || ''} onChange={(e) => set('educationLevel', e.target.value)} /></Field>
           {isEdit && (
             <div>
               <label className="label">Situação</label>
@@ -158,17 +175,24 @@ export default function StudentForm({ student, onClose, onSaved }: { student: St
           <div className="mt-6 border-t border-slate-200 pt-5">
             <h4 className="font-semibold text-sm mb-3">Mensalidades (geram as parcelas e o carnê)</h4>
             <div className="grid sm:grid-cols-3 gap-4">
-              <Field label="Valor de cada parcela (R$)"><input type="number" step="0.01" className="input" value={f.monthlyFee ?? ''} onChange={(e) => set('monthlyFee', e.target.value)} /></Field>
-              <Field label="Nº de parcelas"><input type="number" min={1} max={24} className="input" value={f.installments ?? ''} onChange={(e) => set('installments', e.target.value)} /></Field>
-              <Field label="1º vencimento"><input type="date" className="input" value={f.firstDueDate || ''} onChange={(e) => set('firstDueDate', e.target.value)} /></Field>
+              <Field name="monthlyFee" label="Valor de cada parcela (R$)" error={errors.monthlyFee}><input type="number" step="0.01" className="input" value={f.monthlyFee ?? ''} onChange={(e) => set('monthlyFee', e.target.value)} /></Field>
+              <Field name="installments" label="Nº de parcelas" error={errors.installments}><input type="number" min={1} max={24} className="input" value={f.installments ?? ''} onChange={(e) => set('installments', e.target.value)} /></Field>
+              <Field name="firstDueDate" label="1º vencimento" error={errors.firstDueDate}><input type="date" className="input" value={f.firstDueDate || ''} onChange={(e) => set('firstDueDate', e.target.value)} /></Field>
             </div>
             <p className="text-xs text-slate-500 mt-2">{f.installments || 0}x de {money(f.monthlyFee)} = {money(total)}. Os demais vencimentos caem no mesmo dia dos meses seguintes.</p>
-            <div className="mt-4">
+            <div
+              className={`mt-4 ${errors.password ? '[&_.input]:border-red-500 [&_.input]:ring-1 [&_.input]:ring-red-200' : ''}`}
+              data-field="password"
+              data-invalid={errors.password ? 'true' : undefined}
+            >
               <label className="label">Senha inicial (opcional)</label>
               <input className="input max-w-xs" type="text" autoComplete="off" placeholder="deixe em branco para gerar" value={f.password || ''} onChange={(e) => set('password', e.target.value)} />
+              {errors.password && <p role="alert" className="text-xs text-red-600 mt-1">{errors.password}</p>}
             </div>
           </div>
         )}
+
+        {serverError && <div role="alert" className="mt-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm">{serverError}</div>}
 
         <div className="flex justify-end gap-2 mt-6">
           <button type="button" className="btn-secondary" onClick={onClose}>Cancelar</button>
