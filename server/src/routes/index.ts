@@ -5,6 +5,7 @@ import contractsRoutes from '@/modules/contracts/contracts.routes';
 import documentsRoutes from '@/modules/documents/documents.routes';
 import gradesRoutes from '@/modules/grades/grades.routes';
 import invoicesRoutes from '@/modules/invoices/invoices.routes';
+import notificationsRoutes from '@/modules/notifications/notifications.routes';
 import scheduleRoutes from '@/modules/schedule/schedule.routes';
 import schoolRoutes from '@/modules/school/school.routes';
 import studentsRoutes from '@/modules/students/students.routes';
@@ -22,6 +23,7 @@ router.use('/certificates', certificatesRoutes);
 router.use('/contracts', contractsRoutes);
 router.use('/schedule', scheduleRoutes);
 router.use('/school', schoolRoutes);
+router.use('/notifications', notificationsRoutes);
 
 
 export default router;
