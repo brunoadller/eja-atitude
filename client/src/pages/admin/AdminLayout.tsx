@@ -7,6 +7,7 @@ import {
 } from "react-icons/io5";
 import { Outlet } from 'react-router-dom';
 import Sidebar, { MobileNav, NavItem } from '../../components/Sidebar';
+import { NotificationsProvider } from '../../lib/notifications';
 
 
 const items: NavItem[] = [
@@ -23,12 +24,14 @@ const items: NavItem[] = [
 
 export default function AdminLayout() {
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row">
-      <Sidebar items={items} role="admin" />
-      <MobileNav items={items} />
-      <main className="flex-1 p-6 lg:p-10 overflow-x-hidden">
-        <Outlet />
-      </main>
-    </div>
+    <NotificationsProvider>
+      <div className="min-h-screen flex flex-col lg:flex-row">
+        <Sidebar items={items} role="admin" />
+        <MobileNav items={items} />
+        <main className="flex-1 p-6 lg:p-10 overflow-x-hidden">
+          <Outlet />
+        </main>
+      </div>
+    </NotificationsProvider>
   );
 }

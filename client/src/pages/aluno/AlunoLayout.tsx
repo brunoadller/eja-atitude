@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom';
 import Sidebar, { MobileNav, NavItem } from '../../components/Sidebar';
+import { NotificationsProvider } from '../../lib/notifications';
 import { IoGridOutline, IoIdCardOutline, IoBookOutline, IoCalendarOutline, IoStatsChartOutline, IoWalletOutline, IoCreateOutline, IoDocumentTextOutline
  } from "react-icons/io5";
 
@@ -16,12 +17,14 @@ const items: NavItem[] = [
 
 export default function AlunoLayout() {
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row">
-      <Sidebar items={items} role="aluno" />
-      <MobileNav items={items} />
-      <main className="flex-1 p-6 lg:p-10 overflow-x-hidden">
-        <Outlet />
-      </main>
-    </div>
+    <NotificationsProvider>
+      <div className="min-h-screen flex flex-col lg:flex-row">
+        <Sidebar items={items} role="aluno" />
+        <MobileNav items={items} />
+        <main className="flex-1 p-6 lg:p-10 overflow-x-hidden">
+          <Outlet />
+        </main>
+      </div>
+    </NotificationsProvider>
   );
 }

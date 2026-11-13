@@ -4,6 +4,7 @@ import { useAuth } from '../lib/auth';
 import { initials } from '../lib/api';
 import { SCHOOL_ICON, SCHOOL_LOGO, useSchool } from '../lib/school';
 import { ReactNode } from "react";
+import NotificationBell from './NotificationBell';
 
 export interface NavItem {
   to: string;
@@ -19,8 +20,9 @@ export default function Sidebar({ items, role }: { items: NavItem[]; role: 'admi
 
   return (
     <aside className="w-60 shrink-0 bg-white border-r border-slate-200 flex flex-col sticky top-0 h-screen px-4 py-6 lg:flex hidden">
-      <div className="px-2 pb-5 border-b border-slate-200 mb-4">
-        <img src={SCHOOL_LOGO} alt={school?.name ?? 'Logo da escola'} className="h-12 w-auto" />
+      <div className="px-2 pb-5 border-b border-slate-200 mb-4 flex items-center justify-between gap-2">
+        <img src={SCHOOL_LOGO} alt={school?.name ?? 'Logo da escola'} className="h-12 w-auto min-w-0" />
+        <NotificationBell />
       </div>
 
       <nav className="flex-1 flex flex-col gap-0.5">
@@ -64,6 +66,7 @@ export function MobileNav({ items }: { items: NavItem[] }) {
   return (
     <div className="lg:hidden bg-white border-b border-slate-200 overflow-x-auto flex px-3 py-2 gap-2 sticky top-0 z-40">
       <img src={SCHOOL_ICON} alt={school?.name ?? 'Logo da escola'} className="h-7 w-7 shrink-0 self-center" />
+      <NotificationBell />
       {items.map((it) => (
         <NavLink
           key={it.to}
