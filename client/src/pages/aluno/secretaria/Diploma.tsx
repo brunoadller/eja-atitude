@@ -4,6 +4,7 @@ import { IoCheckmarkCircle, IoSchoolOutline, IoTimeOutline } from 'react-icons/i
 import { api, money } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
 import { useToast } from '../../../lib/toast';
+import { useConfirm } from '../../../lib/confirm';
 import type { CompletionCheck, DocStatus, Student } from '../../../types';
 
 /** Situação de cada via do certificado, do ponto de vista do aluno (ele não baixa o PDF). */
@@ -21,6 +22,7 @@ const dia = (d?: string | null) => (d ? new Date(d).toLocaleDateString('pt-BR') 
  */
 export default function Diploma() {
   const toast = useToast();
+  const confirm = useConfirm();
   const { me, refresh } = useAuth();
   const aluno = me!.user as Student;
   const [st, setSt] = useState<DocStatus | null>(null);
@@ -38,6 +40,15 @@ export default function Diploma() {
   }, []);
 
   async function solicitar() {
+    // Via com taxa: pergunta antes, porque a solicitação já gera a cobrança
+    if (st && st.fee > 0) {
+      const ok = await confirm({
+        title: `Solicitar ${st.nextVia}ª via do certificado`,
+        message: `A ${st.nextVia}ª via tem taxa de ${money(st.fee)}, paga na secretaria. Deseja solicitar?`,
+        confirmLabel: 'Solicitar',
+      });
+      if (!ok) return;
+    }
     setBusy(true);
     try {
       await api('certificates/requests', { method: 'POST', body: { type: 'certificate' } });

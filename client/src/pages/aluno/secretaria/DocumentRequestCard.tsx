@@ -1,6 +1,7 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { api, br, downloadPdf, money } from '../../../lib/api';
 import { useToast } from '../../../lib/toast';
+import { useConfirm } from '../../../lib/confirm';
 import type { DocStatus } from '../../../types';
 
 const STATUS: Record<string, { label: string; cls: string }> = {
@@ -12,6 +13,7 @@ const STATUS: Record<string, { label: string; cls: string }> = {
 /** Fluxo compartilhado: solicitar via -> (taxa paga na secretaria) -> baixar. */
 export default function DocumentRequestCard({ type, icon, intro, footer }: { type: 'attestation' | 'certificate'; icon: ReactNode; intro: string; footer?: ReactNode }) {
   const toast = useToast();
+  const confirm = useConfirm();
   const [st, setSt] = useState<DocStatus | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -19,6 +21,15 @@ export default function DocumentRequestCard({ type, icon, intro, footer }: { typ
   useEffect(() => { load(); }, [type]);
 
   async function request() {
+    // Via com taxa: pergunta antes, porque a solicitação já gera a cobrança
+    if (st && st.fee > 0) {
+      const ok = await confirm({
+        title: `Solicitar ${st.nextVia}ª via`,
+        message: `A ${st.nextVia}ª via tem taxa de ${money(st.fee)}, paga na secretaria. Deseja solicitar?`,
+        confirmLabel: 'Solicitar',
+      });
+      if (!ok) return;
+    }
     setBusy(true);
     try {
       await api('certificates/requests', { method: 'POST', body: { type } });
