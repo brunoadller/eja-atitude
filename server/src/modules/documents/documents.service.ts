@@ -26,6 +26,16 @@ const fileData = (file: Express.Multer.File) => ({
   size: file.size,
 });
 
+/**
+ * Depois que o certificado é emitido, os documentos que o sustentam não mudam mais
+ * (a secretaria não aprova, recusa nem substitui). Vale só para a secretaria: o aluno já não mexe em aprovado.
+ */
+async function assertDocumentsEditable(studentId: string) {
+  if (await DocumentsRepository.hasIssuedCertificate(studentId)) {
+    throw new ForbiddenError('o certificado deste aluno já foi emitido; os documentos não podem mais ser alterados');
+  }
+}
+
 export const DocumentsService = {
   listTypes: () => DOCUMENT_TYPE_LIST,
 
@@ -61,6 +71,7 @@ export const DocumentsService = {
    */
   async uploadByAdmin(adminId: string, studentId: string, type: string, approve: boolean, file: Express.Multer.File) {
     if (!(await DocumentsRepository.studentExists(studentId))) throw new NotFoundError('aluno não encontrado');
+    await assertDocumentsEditable(studentId);
 
     const now = new Date();
     const { created, oldFileNames } = await DocumentsRepository.replaceCurrent(studentId, type, {
@@ -84,6 +95,7 @@ export const DocumentsService = {
   async review(adminId: string, id: string, status: 'approved' | 'rejected', note?: string) {
     const doc = await DocumentsRepository.findById(id);
     if (!doc) throw new NotFoundError('documento não encontrado');
+    await assertDocumentsEditable(doc.studentId);
     const updated = await DocumentsRepository.review(id, status, status === 'rejected' ? note ?? null : null, adminId);
     if (status === 'approved') await syncCompletedStatus(doc.studentId); // notas + documentos em dia → Concluído
     await NotificationsService.notifyDocumentReviewed(doc.studentId, doc.type, status, updated.note);

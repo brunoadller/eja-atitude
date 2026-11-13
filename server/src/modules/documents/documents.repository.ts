@@ -25,6 +25,10 @@ export const DocumentsRepository = {
   findByIdWithAdmins(id: string) {
     return prisma.studentDocument.findUniqueOrThrow({ where: { id }, include: withAdmins });
   },
+  /** Já existe certificado marcado como emitido (impresso, assinado e carimbado) para este aluno? */
+  hasIssuedCertificate(studentId: string) {
+    return prisma.documentRequest.count({ where: { studentId, type: 'certificate', status: 'issued' } }).then((n) => n > 0);
+  },
   studentExists(studentId: string) {
     return prisma.student.count({ where: { id: studentId } }).then((n) => n > 0);
   },

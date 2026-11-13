@@ -5,6 +5,7 @@ import {
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { useToast } from '../../lib/toast';
+import { useConfirm } from '../../lib/confirm';
 import type { DocumentTypeInfo, Student, StudentDocument } from '../../types';
 import PageHeader, { Empty } from '../../components/PageHeader';
 import Modal from '../../components/Modal';
@@ -186,6 +187,7 @@ function DocumentoLinha({
   onMudou: () => void;
 }) {
   const toast = useToast();
+  const confirm = useConfirm();
   const [modo, setModo] = useState<'nenhum' | 'recusar' | 'anexar'>('nenhum');
   const [motivo, setMotivo] = useState('');
   const [arquivo, setArquivo] = useState<File | null>(null);
@@ -218,6 +220,28 @@ function DocumentoLinha({
       () => api(`/documents/${doc!.id}/review`, { method: 'PUT', body: { status: 'approved' } }),
       'Documento aprovado.',
     );
+
+  /**
+   * Documento JÁ APROVADO: recusar ou substituir pode tirar do aluno o acesso ao certificado.
+   * Pergunta antes de abrir o formulário, para um clique sem querer não derrubar quem está em dia.
+   */
+  async function abrirComAviso(novoModo: 'recusar' | 'anexar') {
+    if (doc?.status === 'approved') {
+      const ok = await confirm({
+        title: novoModo === 'recusar' ? 'Recusar documento aprovado?' : 'Substituir documento aprovado?',
+        message:
+          `"${label}" já está aprovado.\n\n` +
+          (novoModo === 'recusar'
+            ? 'Se recusar, o aluno deixa de cumprir a condição de documentação e não poderá solicitar o certificado até reenviar e você aprovar de novo.'
+            : 'Ao substituir, o documento atual é apagado. Se o novo ficar pendente, o aluno não poderá solicitar o certificado até você aprová-lo.') +
+          '\n\nTem certeza de que é o aluno e o documento certos?',
+        confirmLabel: novoModo === 'recusar' ? 'Sim, recusar' : 'Sim, substituir',
+        danger: true,
+      });
+      if (!ok) return;
+    }
+    setModo(novoModo);
+  }
 
   function recusar(e: FormEvent) {
     e.preventDefault();
@@ -270,11 +294,11 @@ function DocumentoLinha({
             </button>
           )}
           {doc && doc.status !== 'rejected' && (
-            <button className="btn-ghost btn-sm text-red-600" onClick={() => setModo('recusar')} disabled={busy}>
+            <button className="btn-ghost btn-sm text-red-600" onClick={() => abrirComAviso('recusar')} disabled={busy}>
               <IoCloseCircle className="mr-1" /> Recusar
             </button>
           )}
-          <button className="btn-ghost btn-sm" onClick={() => setModo('anexar')} disabled={busy}>
+          <button className="btn-ghost btn-sm" onClick={() => abrirComAviso('anexar')} disabled={busy}>
             <IoAttachOutline className="mr-1" /> {doc ? 'Substituir' : 'Anexar'}
           </button>
         </div>
