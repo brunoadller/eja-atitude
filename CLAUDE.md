@@ -90,6 +90,7 @@ Se o admin já existe e está sem e-mail, o seed preenche com `ADMIN_EMAIL`.
 ### Notificações
 
 - Aluno é avisado quando a secretaria aprova (também ao anexar já aprovado) ou recusa um documento; na recusa, o aviso traz o motivo.
+- Secretaria é avisada quando o aluno envia documentos: **um aviso por aluno**, listando os que ele enviou e aguardam verificação. Enquanto não lido, novos envios atualizam o mesmo aviso. O clique abre a revisão daquele aluno (`/documentos?aluno=<id>`).
 - Secretaria é avisada quando um aluno solicita o certificado: **uma notificação por administrador** (os que existem no momento). O aviso leva a Certificados.
 - Tabela `notificacoes`: destinatário é um aluno **ou** um admin (CHECK no banco). Não lida = `lida_em` vazio.
 - O destinatário vem **sempre da sessão**, nunca do corpo ou da URL. Rotas `/api/notifications` (mesmas para os dois perfis); notificação de outra pessoa responde 404.
